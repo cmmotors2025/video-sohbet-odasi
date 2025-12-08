@@ -149,7 +149,7 @@ const Room = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Video Section */}
-        <div className="shrink-0 p-2">
+        <div className="shrink-0 px-2 pt-1">
           <VideoPlayer
             videoUrl={videoState?.video_url || null}
             isPlaying={videoState?.is_playing || false}
@@ -163,7 +163,7 @@ const Room = () => {
         </div>
 
         {/* Chat Section */}
-        <div className="flex-1 min-h-0 px-2 pb-2 overflow-hidden">
+        <div className="flex-1 min-h-0 px-2 py-1 overflow-hidden">
           <ChatBox
             messages={messages}
             currentUserId={userId}
