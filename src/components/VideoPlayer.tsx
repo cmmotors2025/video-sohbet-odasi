@@ -1,8 +1,9 @@
 import { useRef, useEffect, useState } from 'react';
 import Hls from 'hls.js';
-import { Play, Pause, RotateCcw, RotateCw, Link, Loader2, Maximize2 } from 'lucide-react';
+import { Play, Pause, RotateCcw, RotateCw, Link, Loader2, Maximize2, Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Slider } from '@/components/ui/slider';
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,9 @@ export const VideoPlayer = ({
   const [urlInput, setUrlInput] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [controlsVisible, setControlsVisible] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
 
   // Calculate smart sync time for new joiners only
   const calculateSyncTime = (forInitialSync = false) => {
@@ -108,6 +112,35 @@ export const VideoPlayer = ({
     };
   }, [videoUrl]);
 
+  // Track current time and duration for progress bar (owner only)
+  useEffect(() => {
+    if (!videoRef.current || !isOwner) return;
+    
+    const video = videoRef.current;
+    
+    const handleTimeUpdate = () => {
+      setCurrentTime(video.currentTime);
+    };
+    
+    const handleLoadedMetadata = () => {
+      setDuration(video.duration);
+    };
+    
+    const handleDurationChange = () => {
+      setDuration(video.duration);
+    };
+    
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('loadedmetadata', handleLoadedMetadata);
+    video.addEventListener('durationchange', handleDurationChange);
+    
+    return () => {
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      video.removeEventListener('durationchange', handleDurationChange);
+    };
+  }, [videoUrl, isOwner]);
+
   // Track last explicit owner action timestamp to detect real updates
   const lastOwnerActionRef = useRef<string | null>(null);
 
@@ -159,6 +192,27 @@ export const VideoPlayer = ({
     const newTime = Math.max(0, video.currentTime + seconds);
     video.currentTime = newTime;
     onSeek(newTime);
+  };
+
+  const handleSliderSeek = (value: number[]) => {
+    if (!videoRef.current || !isOwner) return;
+    
+    const video = videoRef.current;
+    const newTime = value[0];
+    video.currentTime = newTime;
+    onSeek(newTime);
+  };
+
+  const formatTime = (time: number) => {
+    if (!isFinite(time)) return '00:00';
+    const hours = Math.floor(time / 3600);
+    const minutes = Math.floor((time % 3600) / 60);
+    const seconds = Math.floor(time % 60);
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   const handleAddUrl = () => {
@@ -219,9 +273,36 @@ export const VideoPlayer = ({
         )}
       </div>
 
+      {/* Controls Toggle Button - Owner only */}
+      {isOwner && videoUrl && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setControlsVisible(!controlsVisible)}
+          className="absolute top-2 left-2 text-foreground/70 hover:text-foreground hover:bg-secondary/50 z-10"
+        >
+          {controlsVisible ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+        </Button>
+      )}
+
       {/* Controls */}
-      {isOwner && (
+      {isOwner && controlsVisible && (
         <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-cinema-dark via-cinema-dark/90 to-transparent">
+          {/* Progress Bar */}
+          {videoUrl && duration > 0 && (
+            <div className="flex items-center gap-2 mb-3 px-1">
+              <span className="text-xs text-foreground/70 min-w-[40px]">{formatTime(currentTime)}</span>
+              <Slider
+                value={[currentTime]}
+                max={duration}
+                step={1}
+                onValueChange={handleSliderSeek}
+                className="flex-1"
+              />
+              <span className="text-xs text-foreground/70 min-w-[40px] text-right">{formatTime(duration)}</span>
+            </div>
+          )}
+          
           <div className="flex items-center justify-center gap-3">
             <Button
               variant="ghost"
