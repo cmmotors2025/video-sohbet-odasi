@@ -38,15 +38,19 @@ export const VideoPlayer = ({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
+  const lastSyncRef = useRef<number>(0);
+  const isInitialSyncRef = useRef(true);
 
-  // Calculate smart sync time for new joiners
-  const calculateSyncTime = () => {
-    let targetTime = playbackTime;
-    if (isPlaying && lastUpdated) {
+  // Calculate smart sync time for new joiners only
+  const calculateSyncTime = (forInitialSync = false) => {
+    // Only add elapsed time for initial sync of new joiners
+    if (forInitialSync && isPlaying && lastUpdated) {
       const elapsed = (Date.now() - new Date(lastUpdated).getTime()) / 1000;
-      targetTime = playbackTime + elapsed;
+      // Cap elapsed time to prevent jumping too far ahead
+      const cappedElapsed = Math.min(elapsed, 10);
+      return playbackTime + cappedElapsed;
     }
-    return targetTime;
+    return playbackTime;
   };
 
   // Initialize HLS
@@ -72,8 +76,9 @@ export const VideoPlayer = ({
         setIsLoading(false);
         if (videoRef.current) {
           // Smart sync: calculate real-time position for new joiners
-          const targetTime = calculateSyncTime();
+          const targetTime = calculateSyncTime(true);
           videoRef.current.currentTime = targetTime;
+          isInitialSyncRef.current = false;
           if (isPlaying) {
             videoRef.current.play().catch(console.error);
           }
@@ -91,8 +96,9 @@ export const VideoPlayer = ({
       videoRef.current.addEventListener('loadedmetadata', () => {
         setIsLoading(false);
         if (videoRef.current) {
-          const targetTime = calculateSyncTime();
+          const targetTime = calculateSyncTime(true);
           videoRef.current.currentTime = targetTime;
+          isInitialSyncRef.current = false;
           if (isPlaying) {
             videoRef.current.play().catch(console.error);
           }
@@ -145,19 +151,32 @@ export const VideoPlayer = ({
     return () => clearInterval(interval);
   }, [isOwner, isPlaying, onSeek, videoUrl]);
 
-  // Sync playback state from owner
+  // Sync playback state from owner (only for non-owners)
   useEffect(() => {
     if (!videoRef.current || isOwner || syncInProgress) return;
+    
+    // Throttle syncs - don't sync more than once per 3 seconds
+    const now = Date.now();
+    if (now - lastSyncRef.current < 3000) {
+      // Only sync play/pause state without time sync
+      const video = videoRef.current;
+      if (isPlaying && video.paused) {
+        video.play().catch(console.error);
+      } else if (!isPlaying && !video.paused) {
+        video.pause();
+      }
+      return;
+    }
 
     setSyncInProgress(true);
+    lastSyncRef.current = now;
 
     const video = videoRef.current;
-    const targetTime = calculateSyncTime();
-    const timeDiff = Math.abs(video.currentTime - targetTime);
+    const timeDiff = Math.abs(video.currentTime - playbackTime);
 
-    // Sync if time difference is more than 2 seconds
-    if (timeDiff > 2) {
-      video.currentTime = targetTime;
+    // Sync only if time difference is more than 5 seconds (less aggressive)
+    if (timeDiff > 5) {
+      video.currentTime = playbackTime;
     }
 
     if (isPlaying && video.paused) {
@@ -166,8 +185,8 @@ export const VideoPlayer = ({
       video.pause();
     }
 
-    setTimeout(() => setSyncInProgress(false), 100);
-  }, [isPlaying, playbackTime, isOwner, lastUpdated]);
+    setTimeout(() => setSyncInProgress(false), 500);
+  }, [isPlaying, playbackTime, isOwner]);
 
   const handlePlayPause = () => {
     if (!videoRef.current || !isOwner) return;
