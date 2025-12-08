@@ -66,6 +66,20 @@ export const useChat = (roomId: string | undefined) => {
     };
   }, [roomId]);
 
+  const sendSystemMessage = useCallback(async (content: string) => {
+    if (!roomId) return;
+
+    await supabase
+      .from('messages')
+      .insert({
+        room_id: roomId,
+        user_id: 'system',
+        username: 'Sistem',
+        content,
+        image_url: null,
+      });
+  }, [roomId]);
+
   const sendMessage = async (content: string, imageFile?: File) => {
     if (!roomId || (!content.trim() && !imageFile)) return;
 
@@ -111,6 +125,7 @@ export const useChat = (roomId: string | undefined) => {
     messages,
     loading,
     sendMessage,
+    sendSystemMessage,
     userId,
   };
 };

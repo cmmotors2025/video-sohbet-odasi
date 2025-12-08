@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Copy, ArrowLeft, Users, Check, Loader2 } from 'lucide-react';
+import { Copy, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ChatBox } from '@/components/ChatBox';
 import { UsernamePrompt } from '@/components/UsernamePrompt';
 import { VoiceControls } from '@/components/VoiceControls';
+import { ParticipantsDialog } from '@/components/ParticipantsDialog';
 import { useRoom } from '@/hooks/useRoom';
 import { useChat } from '@/hooks/useChat';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
@@ -33,8 +34,13 @@ const Room = () => {
     messages,
     loading: chatLoading,
     sendMessage,
+    sendSystemMessage,
     userId,
   } = useChat(room?.id);
+
+  const handleParticipantJoin = useCallback((name: string) => {
+    sendSystemMessage(`${name} katıldı`);
+  }, [sendSystemMessage]);
 
   const {
     isConnected: voiceConnected,
@@ -45,7 +51,7 @@ const Room = () => {
     connect: connectVoice,
     disconnect: disconnectVoice,
     toggleMic,
-  } = useVoiceChat(code, room?.id);
+  } = useVoiceChat(code, room?.id, handleParticipantJoin);
 
   useEffect(() => {
     const username = getUsername();
@@ -93,7 +99,7 @@ const Room = () => {
   return (
     <div className="h-screen cinema-gradient flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 flex items-center justify-between p-3 border-b border-border/30">
+      <header className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border/30">
         <Button
           onClick={() => navigate('/')}
           variant="ghost"
@@ -132,19 +138,18 @@ const Room = () => {
             onConnect={connectVoice}
             onDisconnect={disconnectVoice}
           />
-          <div className="flex items-center gap-1 text-muted-foreground">
-            <Users className="w-4 h-4" />
-            <span className="text-xs">
-              {isOwner ? 'Oda Sahibi' : 'İzleyici'}
-            </span>
-          </div>
+          <ParticipantsDialog
+            participants={voiceParticipants}
+            isOwner={isOwner}
+            currentUsername={getUsername() || 'Anonim'}
+          />
         </div>
       </header>
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Video Section */}
-        <div className="shrink-0 p-3">
+        <div className="shrink-0 p-2">
           <VideoPlayer
             videoUrl={videoState?.video_url || null}
             isPlaying={videoState?.is_playing || false}
@@ -158,7 +163,7 @@ const Room = () => {
         </div>
 
         {/* Chat Section */}
-        <div className="flex-1 min-h-0 p-3 pt-0 overflow-hidden">
+        <div className="flex-1 min-h-0 px-2 pb-2 overflow-hidden">
           <ChatBox
             messages={messages}
             currentUserId={userId}

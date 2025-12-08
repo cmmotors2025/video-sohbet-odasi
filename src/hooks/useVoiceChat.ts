@@ -19,7 +19,13 @@ interface VoiceChatState {
   error: string | null;
 }
 
-export const useVoiceChat = (roomCode: string | undefined, roomId: string | undefined) => {
+type OnParticipantJoinCallback = (name: string) => void;
+
+export const useVoiceChat = (
+  roomCode: string | undefined,
+  roomId: string | undefined,
+  onParticipantJoin?: OnParticipantJoinCallback
+) => {
   const [state, setState] = useState<VoiceChatState>({
     isConnected: false,
     isConnecting: false,
@@ -30,6 +36,11 @@ export const useVoiceChat = (roomCode: string | undefined, roomId: string | unde
 
   const roomRef = useRef<Room | null>(null);
   const audioElementsRef = useRef<Map<string, HTMLAudioElement>>(new Map());
+  const onParticipantJoinRef = useRef<OnParticipantJoinCallback | undefined>(onParticipantJoin);
+
+  useEffect(() => {
+    onParticipantJoinRef.current = onParticipantJoin;
+  }, [onParticipantJoin]);
 
   // Connect to LiveKit room
   const connect = useCallback(async () => {
@@ -92,10 +103,17 @@ export const useVoiceChat = (roomCode: string | undefined, roomId: string | unde
 
       room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
         console.log('Participant connected:', participant.identity);
+        const participantName = participant.name || participant.identity;
+        
+        // Notify about new participant
+        if (onParticipantJoinRef.current) {
+          onParticipantJoinRef.current(participantName);
+        }
+        
         setState(prev => {
           const newParticipants = new Map(prev.participants);
           newParticipants.set(participant.identity, {
-            name: participant.name || participant.identity,
+            name: participantName,
             isSpeaking: false,
           });
           return { ...prev, participants: newParticipants };
