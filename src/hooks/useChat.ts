@@ -59,6 +59,19 @@ export const useChat = (roomId: string | undefined) => {
           setMessages((prev) => [...prev, payload.new as Message]);
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          console.log('Message deleted:', payload);
+          // Remove the deleted message from state
+          setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
+        }
+      )
       .subscribe();
 
     return () => {
