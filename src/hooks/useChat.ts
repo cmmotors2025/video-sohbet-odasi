@@ -9,6 +9,7 @@ interface Message {
   username: string;
   content: string;
   created_at: string;
+  image_url?: string | null;
 }
 
 export const useChat = (roomId: string | undefined) => {
@@ -65,10 +66,31 @@ export const useChat = (roomId: string | undefined) => {
     };
   }, [roomId]);
 
-  const sendMessage = async (content: string) => {
-    if (!roomId || !content.trim()) return;
+  const sendMessage = async (content: string, imageFile?: File) => {
+    if (!roomId || (!content.trim() && !imageFile)) return;
 
     const username = getUsername();
+    let imageUrl: string | null = null;
+
+    // Upload image if provided
+    if (imageFile) {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${roomId}/${userId}_${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('chat-images')
+        .upload(fileName, imageFile);
+
+      if (uploadError) {
+        console.error('Error uploading image:', uploadError);
+      } else {
+        const { data: publicUrlData } = supabase.storage
+          .from('chat-images')
+          .getPublicUrl(uploadData.path);
+        
+        imageUrl = publicUrlData.publicUrl;
+      }
+    }
     
     const { error } = await supabase
       .from('messages')
@@ -77,6 +99,7 @@ export const useChat = (roomId: string | undefined) => {
         user_id: userId,
         username: username || 'Anonim',
         content: content.trim(),
+        image_url: imageUrl,
       });
 
     if (error) {
