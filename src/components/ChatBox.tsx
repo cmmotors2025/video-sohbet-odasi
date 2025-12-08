@@ -54,7 +54,7 @@ export const ChatBox = ({
   };
 
   return (
-    <div className="flex flex-col h-full bg-card/50 rounded-lg border border-border/30">
+    <div className="flex flex-col h-full max-h-full overflow-hidden bg-card/50 rounded-lg border border-border/30">
       {/* Chat Header */}
       <div className="px-4 py-3 border-b border-border/30">
         <h3 className="font-medium text-sm text-foreground/90">Sohbet</h3>
@@ -63,7 +63,7 @@ export const ChatBox = ({
       {/* Messages Container */}
       <div 
         ref={containerRef}
-        className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-thin"
+        className="flex-1 min-h-0 overflow-y-auto p-3 space-y-2 scrollbar-thin"
       >
         {loading ? (
           <div className="flex items-center justify-center h-full">

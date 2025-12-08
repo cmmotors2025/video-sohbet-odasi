@@ -78,9 +78,9 @@ const Room = () => {
   }
 
   return (
-    <div className="min-h-screen cinema-gradient flex flex-col">
+    <div className="h-screen cinema-gradient flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="flex items-center justify-between p-3 border-b border-border/30">
+      <header className="shrink-0 flex items-center justify-between p-3 border-b border-border/30">
         <Button
           onClick={() => navigate('/')}
           variant="ghost"
@@ -117,9 +117,9 @@ const Room = () => {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Video Section */}
-        <div className="p-3">
+        <div className="shrink-0 p-3">
           <VideoPlayer
             videoUrl={videoState?.video_url || null}
             isPlaying={videoState?.is_playing || false}
@@ -133,7 +133,7 @@ const Room = () => {
         </div>
 
         {/* Chat Section */}
-        <div className="flex-1 p-3 pt-0 min-h-0">
+        <div className="flex-1 min-h-0 p-3 pt-0 overflow-hidden">
           <ChatBox
             messages={messages}
             currentUserId={userId}
