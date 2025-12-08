@@ -163,7 +163,7 @@ const Room = () => {
         </div>
 
         {/* Chat Section */}
-        <div className="flex-1 min-h-0 max-h-[40vh] px-2 py-1 overflow-hidden">
+        <div className="flex-1 min-h-0 max-h-[40vh] px-2 pt-1 overflow-hidden">
           <ChatBox
             messages={messages}
             currentUserId={userId}
