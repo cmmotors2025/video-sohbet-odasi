@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ChatBox } from '@/components/ChatBox';
 import { UsernamePrompt } from '@/components/UsernamePrompt';
+import { VoiceControls } from '@/components/VoiceControls';
 import { useRoom } from '@/hooks/useRoom';
 import { useChat } from '@/hooks/useChat';
+import { useVoiceChat } from '@/hooks/useVoiceChat';
 import { getUsername } from '@/lib/user';
 import { toast } from '@/hooks/use-toast';
 
@@ -33,6 +35,17 @@ const Room = () => {
     sendMessage,
     userId,
   } = useChat(room?.id);
+
+  const {
+    isConnected: voiceConnected,
+    isConnecting: voiceConnecting,
+    isMicEnabled,
+    participants: voiceParticipants,
+    error: voiceError,
+    connect: connectVoice,
+    disconnect: disconnectVoice,
+    toggleMic,
+  } = useVoiceChat(code, room?.id);
 
   useEffect(() => {
     const username = getUsername();
@@ -108,11 +121,23 @@ const Room = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-1 text-muted-foreground">
-          <Users className="w-4 h-4" />
-          <span className="text-xs">
-            {isOwner ? 'Oda Sahibi' : 'İzleyici'}
-          </span>
+        <div className="flex items-center gap-2">
+          <VoiceControls
+            isConnected={voiceConnected}
+            isConnecting={voiceConnecting}
+            isMicEnabled={isMicEnabled}
+            participantCount={voiceParticipants.size}
+            error={voiceError}
+            onToggleMic={toggleMic}
+            onConnect={connectVoice}
+            onDisconnect={disconnectVoice}
+          />
+          <div className="flex items-center gap-1 text-muted-foreground">
+            <Users className="w-4 h-4" />
+            <span className="text-xs">
+              {isOwner ? 'Oda Sahibi' : 'İzleyici'}
+            </span>
+          </div>
         </div>
       </header>
 
