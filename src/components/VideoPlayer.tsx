@@ -39,6 +39,16 @@ export const VideoPlayer = ({
   const [isLoading, setIsLoading] = useState(false);
   const [syncInProgress, setSyncInProgress] = useState(false);
 
+  // Calculate smart sync time for new joiners
+  const calculateSyncTime = () => {
+    let targetTime = playbackTime;
+    if (isPlaying && lastUpdated) {
+      const elapsed = (Date.now() - new Date(lastUpdated).getTime()) / 1000;
+      targetTime = playbackTime + elapsed;
+    }
+    return targetTime;
+  };
+
   // Initialize HLS
   useEffect(() => {
     if (!videoUrl || !videoRef.current) return;
@@ -61,7 +71,9 @@ export const VideoPlayer = ({
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsLoading(false);
         if (videoRef.current) {
-          videoRef.current.currentTime = playbackTime;
+          // Smart sync: calculate real-time position for new joiners
+          const targetTime = calculateSyncTime();
+          videoRef.current.currentTime = targetTime;
           if (isPlaying) {
             videoRef.current.play().catch(console.error);
           }
@@ -79,7 +91,8 @@ export const VideoPlayer = ({
       videoRef.current.addEventListener('loadedmetadata', () => {
         setIsLoading(false);
         if (videoRef.current) {
-          videoRef.current.currentTime = playbackTime;
+          const targetTime = calculateSyncTime();
+          videoRef.current.currentTime = targetTime;
           if (isPlaying) {
             videoRef.current.play().catch(console.error);
           }
@@ -94,6 +107,44 @@ export const VideoPlayer = ({
     };
   }, [videoUrl]);
 
+  // Visibility change handler - resume when coming back from background
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && videoRef.current && videoUrl) {
+        const video = videoRef.current;
+        const targetTime = calculateSyncTime();
+        const timeDiff = Math.abs(video.currentTime - targetTime);
+
+        // Sync if more than 1 second difference
+        if (timeDiff > 1) {
+          video.currentTime = targetTime;
+        }
+
+        // Resume playback if it should be playing
+        if (isPlaying && video.paused) {
+          video.play().catch(console.error);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [playbackTime, isPlaying, lastUpdated, videoUrl]);
+
+  // Owner: periodically update playback position
+  useEffect(() => {
+    if (!isOwner || !videoRef.current || !videoUrl) return;
+
+    const interval = setInterval(() => {
+      const video = videoRef.current;
+      if (video && !video.paused && isPlaying) {
+        onSeek(video.currentTime);
+      }
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isOwner, isPlaying, onSeek, videoUrl]);
+
   // Sync playback state from owner
   useEffect(() => {
     if (!videoRef.current || isOwner || syncInProgress) return;
@@ -101,11 +152,12 @@ export const VideoPlayer = ({
     setSyncInProgress(true);
 
     const video = videoRef.current;
-    const timeDiff = Math.abs(video.currentTime - playbackTime);
+    const targetTime = calculateSyncTime();
+    const timeDiff = Math.abs(video.currentTime - targetTime);
 
     // Sync if time difference is more than 2 seconds
     if (timeDiff > 2) {
-      video.currentTime = playbackTime;
+      video.currentTime = targetTime;
     }
 
     if (isPlaying && video.paused) {
@@ -178,6 +230,8 @@ export const VideoPlayer = ({
               ref={videoRef}
               className="w-full h-full object-contain"
               playsInline
+              webkit-playsinline="true"
+              x5-playsinline="true"
             />
             {/* Fullscreen Button - Always visible */}
             <Button
