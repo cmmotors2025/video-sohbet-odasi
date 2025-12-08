@@ -90,14 +90,14 @@ export const ChatBox = ({
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-card/50 rounded-lg border border-border/30">
       {/* Chat Header */}
-      <div className="px-3 py-2 border-b border-border/30">
-        <h3 className="font-medium text-sm text-foreground/90">Sohbet</h3>
+      <div className="px-2 py-1 border-b border-border/30">
+        <h3 className="font-medium text-xs text-foreground/90">Sohbet</h3>
       </div>
 
       {/* Messages Container */}
       <div 
         ref={containerRef}
-        className="flex-1 min-h-0 overflow-y-auto p-2 space-y-1.5 scrollbar-thin"
+        className="flex-1 min-h-0 overflow-y-auto px-2 py-1 space-y-1 scrollbar-thin"
       >
         {loading ? (
           <div className="flex items-center justify-center h-full">
@@ -191,7 +191,7 @@ export const ChatBox = ({
       )}
 
       {/* Message Input */}
-      <form onSubmit={handleSubmit} className="p-2 border-t border-border/30">
+      <form onSubmit={handleSubmit} className="px-2 py-1.5 border-t border-border/30">
         <div className="flex gap-2 items-center">
           <input
             type="file"
