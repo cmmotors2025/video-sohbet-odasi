@@ -113,20 +113,23 @@ export const VideoPlayer = ({
     };
   }, [videoUrl]);
 
-  // Visibility change handler - resume when coming back from background
+  // Visibility change handler - NON-OWNERS only resume from background
+  // Owner going to background should NOT affect others
   useEffect(() => {
+    if (isOwner) return; // Owner's visibility changes don't trigger any sync
+
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible' && videoRef.current && videoUrl) {
         const video = videoRef.current;
-        const targetTime = calculateSyncTime();
+        
+        // Non-owner coming back: sync to current state from database
+        const targetTime = calculateSyncTime(true);
         const timeDiff = Math.abs(video.currentTime - targetTime);
 
-        // Sync if more than 1 second difference
-        if (timeDiff > 1) {
+        if (timeDiff > 2) {
           video.currentTime = targetTime;
         }
 
-        // Resume playback if it should be playing
         if (isPlaying && video.paused) {
           video.play().catch(console.error);
         }
@@ -135,21 +138,7 @@ export const VideoPlayer = ({
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [playbackTime, isPlaying, lastUpdated, videoUrl]);
-
-  // Owner: periodically update playback position
-  useEffect(() => {
-    if (!isOwner || !videoRef.current || !videoUrl) return;
-
-    const interval = setInterval(() => {
-      const video = videoRef.current;
-      if (video && !video.paused && isPlaying) {
-        onSeek(video.currentTime);
-      }
-    }, 4000);
-
-    return () => clearInterval(interval);
-  }, [isOwner, isPlaying, onSeek, videoUrl]);
+  }, [playbackTime, isPlaying, lastUpdated, videoUrl, isOwner]);
 
   // Sync playback state from owner (only for non-owners)
   useEffect(() => {
