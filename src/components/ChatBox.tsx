@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, ImagePlus, X } from 'lucide-react';
+import { Send, ImagePlus, X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,17 @@ import {
   DialogContent,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 interface Message {
   id: string;
@@ -23,6 +34,8 @@ interface ChatBoxProps {
   messages: Message[];
   currentUserId: string;
   onSendMessage: (content: string, imageFile?: File) => void;
+  onClearMessages?: () => void;
+  isOwner?: boolean;
   loading?: boolean;
 }
 
@@ -30,6 +43,8 @@ export const ChatBox = ({
   messages, 
   currentUserId, 
   onSendMessage,
+  onClearMessages,
+  isOwner = false,
   loading 
 }: ChatBoxProps) => {
   const [input, setInput] = useState('');
@@ -90,8 +105,35 @@ export const ChatBox = ({
   return (
     <div className="flex flex-col h-full max-h-full overflow-hidden bg-card/50 rounded-lg border border-border/30">
       {/* Chat Header */}
-      <div className="px-2 py-1 border-b border-border/30">
+      <div className="px-2 py-1 border-b border-border/30 flex items-center justify-between">
         <h3 className="font-medium text-xs text-foreground/90">Sohbet</h3>
+        {isOwner && onClearMessages && messages.length > 0 && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="w-6 h-6 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Sohbeti Temizle</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tüm mesajlar silinecek. Bu işlem geri alınamaz.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>İptal</AlertDialogCancel>
+                <AlertDialogAction onClick={onClearMessages}>
+                  Temizle
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
 
       {/* Messages Container */}

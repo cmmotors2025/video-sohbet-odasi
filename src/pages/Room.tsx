@@ -35,6 +35,7 @@ const Room = () => {
     loading: chatLoading,
     sendMessage,
     sendSystemMessage,
+    clearMessages,
     userId,
   } = useChat(room?.id);
 
@@ -142,6 +143,8 @@ const Room = () => {
             participants={voiceParticipants}
             isOwner={isOwner}
             currentUsername={getUsername() || 'Anonim'}
+            isMicEnabled={isMicEnabled}
+            isConnected={voiceConnected}
           />
         </div>
       </header>
@@ -168,6 +171,8 @@ const Room = () => {
             messages={messages}
             currentUserId={userId}
             onSendMessage={sendMessage}
+            onClearMessages={clearMessages}
+            isOwner={isOwner}
             loading={chatLoading}
           />
         </div>

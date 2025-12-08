@@ -13,15 +13,20 @@ interface ParticipantsDialogProps {
   participants: Map<string, { name: string; isSpeaking: boolean }>;
   isOwner: boolean;
   currentUsername: string;
+  isMicEnabled: boolean;
+  isConnected: boolean;
 }
 
 export const ParticipantsDialog = ({
   participants,
   isOwner,
   currentUsername,
+  isMicEnabled,
+  isConnected,
 }: ParticipantsDialogProps) => {
   const participantList = Array.from(participants.entries());
-  const totalCount = participantList.length + 1; // +1 for current user
+  // Total count: other participants + current user (if connected)
+  const totalCount = isConnected ? participantList.length + 1 : participantList.length;
 
   return (
     <Dialog>
@@ -32,7 +37,7 @@ export const ParticipantsDialog = ({
           className="flex items-center gap-1 text-muted-foreground hover:text-foreground px-2"
         >
           <Users className="w-4 h-4" />
-          <span className="text-xs">{isOwner ? 'Oda Sahibi' : 'İzleyici'}</span>
+          <span className="text-xs">{totalCount}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-xs">
@@ -43,13 +48,20 @@ export const ParticipantsDialog = ({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-2 max-h-60 overflow-y-auto">
-          {/* Current user */}
-          <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10">
-            <div className="flex items-center gap-2">
-              {isOwner && <Crown className="w-4 h-4 text-yellow-500" />}
-              <span className="text-sm font-medium">{currentUsername} (Sen)</span>
+          {/* Current user - only show if connected */}
+          {isConnected && (
+            <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10">
+              <div className="flex items-center gap-2">
+                {isOwner && <Crown className="w-4 h-4 text-yellow-500" />}
+                <span className="text-sm font-medium">{currentUsername} (Sen)</span>
+              </div>
+              {isMicEnabled ? (
+                <Mic className="w-4 h-4 text-primary" />
+              ) : (
+                <MicOff className="w-4 h-4 text-muted-foreground" />
+              )}
             </div>
-          </div>
+          )}
 
           {/* Other participants */}
           {participantList.map(([id, participant]) => (
@@ -69,9 +81,9 @@ export const ParticipantsDialog = ({
             </div>
           ))}
 
-          {participantList.length === 0 && (
+          {totalCount === 0 && (
             <p className="text-sm text-muted-foreground text-center py-2">
-              Başka kimse yok
+              Henüz bağlanan yok
             </p>
           )}
         </div>

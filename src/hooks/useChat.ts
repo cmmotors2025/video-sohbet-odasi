@@ -121,11 +121,27 @@ export const useChat = (roomId: string | undefined) => {
     }
   };
 
+  const clearMessages = useCallback(async () => {
+    if (!roomId) return;
+
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('room_id', roomId);
+
+    if (error) {
+      console.error('Error clearing messages:', error);
+    } else {
+      setMessages([]);
+    }
+  }, [roomId]);
+
   return {
     messages,
     loading,
     sendMessage,
     sendSystemMessage,
+    clearMessages,
     userId,
   };
 };
