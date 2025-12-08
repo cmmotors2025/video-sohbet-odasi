@@ -122,7 +122,7 @@ export const ChatBox = ({
                 {/* Always show username */}
                 <span className={cn(
                   "text-xs font-medium mb-1",
-                  isOwn ? "text-primary mr-2" : "text-accent-foreground ml-2"
+                  isOwn ? "text-primary mr-2" : "text-primary ml-2"
                 )}>
                   {message.username}
                 </span>

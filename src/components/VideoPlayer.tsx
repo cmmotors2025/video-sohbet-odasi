@@ -37,9 +37,6 @@ export const VideoPlayer = ({
   const [urlInput, setUrlInput] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [syncInProgress, setSyncInProgress] = useState(false);
-  const lastSyncRef = useRef<number>(0);
-  const isInitialSyncRef = useRef(true);
 
   // Calculate smart sync time for new joiners only
   const calculateSyncTime = (forInitialSync = false) => {
@@ -78,7 +75,6 @@ export const VideoPlayer = ({
           // Smart sync: calculate real-time position for new joiners
           const targetTime = calculateSyncTime(true);
           videoRef.current.currentTime = targetTime;
-          isInitialSyncRef.current = false;
           if (isPlaying) {
             videoRef.current.play().catch(console.error);
           }
@@ -98,7 +94,6 @@ export const VideoPlayer = ({
         if (videoRef.current) {
           const targetTime = calculateSyncTime(true);
           videoRef.current.currentTime = targetTime;
-          isInitialSyncRef.current = false;
           if (isPlaying) {
             videoRef.current.play().catch(console.error);
           }
@@ -113,69 +108,34 @@ export const VideoPlayer = ({
     };
   }, [videoUrl]);
 
-  // Visibility change handler - NON-OWNERS only resume from background
-  // Owner going to background should NOT affect others
+  // Track last explicit owner action timestamp to detect real updates
+  const lastOwnerActionRef = useRef<string | null>(null);
+
+  // Sync playback state from owner ONLY when owner makes explicit action
+  // Owner actions: play/pause button, seek button - these update lastUpdated
   useEffect(() => {
-    if (isOwner) return; // Owner's visibility changes don't trigger any sync
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && videoRef.current && videoUrl) {
-        const video = videoRef.current;
-        
-        // Non-owner coming back: sync to current state from database
-        const targetTime = calculateSyncTime(true);
-        const timeDiff = Math.abs(video.currentTime - targetTime);
-
-        if (timeDiff > 2) {
-          video.currentTime = targetTime;
-        }
-
-        if (isPlaying && video.paused) {
-          video.play().catch(console.error);
-        }
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [playbackTime, isPlaying, lastUpdated, videoUrl, isOwner]);
-
-  // Sync playback state from owner (only for non-owners)
-  useEffect(() => {
-    if (!videoRef.current || isOwner || syncInProgress) return;
+    if (!videoRef.current || isOwner) return;
     
-    // Throttle syncs - don't sync more than once per 3 seconds
-    const now = Date.now();
-    if (now - lastSyncRef.current < 3000) {
-      // Only sync play/pause state without time sync
-      const video = videoRef.current;
-      if (isPlaying && video.paused) {
-        video.play().catch(console.error);
-      } else if (!isPlaying && !video.paused) {
-        video.pause();
-      }
-      return;
+    // Only sync if lastUpdated changed (owner made an explicit action)
+    if (lastUpdated === lastOwnerActionRef.current) {
+      return; // No new owner action, don't sync
     }
-
-    setSyncInProgress(true);
-    lastSyncRef.current = now;
-
+    
+    // This is a new owner action
+    lastOwnerActionRef.current = lastUpdated;
+    
     const video = videoRef.current;
-    const timeDiff = Math.abs(video.currentTime - playbackTime);
-
-    // Sync only if time difference is more than 5 seconds (less aggressive)
-    if (timeDiff > 5) {
-      video.currentTime = playbackTime;
-    }
-
+    
+    // Sync time position
+    video.currentTime = playbackTime;
+    
+    // Sync play/pause state
     if (isPlaying && video.paused) {
       video.play().catch(console.error);
     } else if (!isPlaying && !video.paused) {
       video.pause();
     }
-
-    setTimeout(() => setSyncInProgress(false), 500);
-  }, [isPlaying, playbackTime, isOwner]);
+  }, [lastUpdated, isPlaying, playbackTime, isOwner]);
 
   const handlePlayPause = () => {
     if (!videoRef.current || !isOwner) return;
