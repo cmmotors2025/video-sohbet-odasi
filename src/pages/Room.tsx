@@ -147,9 +147,9 @@ const Room = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden lg:px-8 lg:gap-4 lg:py-4">
         {/* Video Section */}
-        <div className="shrink-0 px-2 pt-2 lg:pt-4 lg:flex-[2] lg:h-full">
+        <div className="shrink-0 px-2 pt-2 lg:px-0 lg:pt-0 lg:flex-[2] lg:h-full">
           <VideoPlayer
             videoUrl={videoState?.video_url || null}
             isPlaying={videoState?.is_playing || false}
@@ -163,7 +163,7 @@ const Room = () => {
         </div>
 
         {/* Chat Section */}
-        <div className="flex-1 min-h-0 px-2 pb-2 pt-2 flex flex-col lg:mt-0 lg:pt-4 lg:flex-1 lg:max-h-full lg:h-full">
+        <div className="flex-1 min-h-0 px-2 pb-2 pt-2 flex flex-col lg:px-0 lg:pt-0 lg:pb-0 lg:flex-1 lg:max-h-full lg:h-full">
           <ChatBox
             messages={messages}
             currentUserId={userId || ''}
