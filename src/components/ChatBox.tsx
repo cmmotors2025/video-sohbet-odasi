@@ -275,7 +275,8 @@ export const ChatBox = ({
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Mesaj yazın..."
-            className="flex-1 bg-input border-border/50 text-sm"
+            className="flex-1 bg-input border-border/50 text-sm h-10 min-h-[40px]"
+            enterKeyHint="send"
           />
           <Button 
             type="submit" 
