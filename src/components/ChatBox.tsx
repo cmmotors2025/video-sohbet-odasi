@@ -28,6 +28,7 @@ interface Message {
   content: string;
   created_at: string;
   image_url?: string | null;
+  avatar_url?: string | null;
 }
 
 interface ChatBoxProps {
@@ -171,40 +172,59 @@ export const ChatBox = ({
               <div
                 key={message.id}
                 className={cn(
-                  'flex flex-col animate-fade-in',
-                  isOwn ? 'items-end' : 'items-start'
+                  'flex animate-fade-in gap-2',
+                  isOwn ? 'flex-row-reverse' : 'flex-row'
                 )}
               >
-                {/* Always show username */}
-                <span className={cn(
-                  "text-xs font-medium mb-1",
-                  isOwn ? "text-primary mr-2" : "text-primary ml-2"
-                )}>
-                  {message.username}
-                </span>
-                <div
-                  className={cn(
-                    'max-w-[80%] px-3 py-2 rounded-2xl',
-                    isOwn 
-                      ? 'bg-chat-own text-foreground rounded-tr-sm' 
-                      : 'bg-chat-bubble text-foreground rounded-tl-sm'
-                  )}
-                >
-                  {message.image_url && (
+                {/* Avatar */}
+                <div className="shrink-0">
+                  {message.avatar_url ? (
                     <img 
-                      src={message.image_url} 
-                      alt="Gönderilen görsel"
-                      className="w-32 h-32 object-cover rounded-lg cursor-pointer mb-2 hover:opacity-90 transition-opacity"
-                      onClick={() => setExpandedImage(message.image_url!)}
+                      src={message.avatar_url} 
+                      alt={message.username}
+                      className="w-8 h-8 rounded-full object-cover"
                     />
-                  )}
-                  {message.content && (
-                    <p className="text-sm break-words">{message.content}</p>
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <span className="text-xs font-medium text-primary">
+                        {message.username.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
                   )}
                 </div>
-                <span className="text-[10px] text-muted-foreground mt-1 mx-2">
-                  {formatTime(message.created_at)}
-                </span>
+
+                {/* Message Content */}
+                <div className={cn('flex flex-col', isOwn ? 'items-end' : 'items-start')}>
+                  <span className={cn(
+                    "text-xs font-medium mb-1",
+                    isOwn ? "text-foreground" : "text-primary"
+                  )}>
+                    {message.username}
+                  </span>
+                  <div
+                    className={cn(
+                      'max-w-[70%] px-3 py-2 rounded-2xl',
+                      isOwn 
+                        ? 'bg-chat-own text-foreground rounded-tr-sm' 
+                        : 'bg-chat-bubble text-foreground rounded-tl-sm'
+                    )}
+                  >
+                    {message.image_url && (
+                      <img 
+                        src={message.image_url} 
+                        alt="Gönderilen görsel"
+                        className="w-32 h-32 object-cover rounded-lg cursor-pointer mb-2 hover:opacity-90 transition-opacity"
+                        onClick={() => setExpandedImage(message.image_url!)}
+                      />
+                    )}
+                    {message.content && (
+                      <p className="text-sm break-words">{message.content}</p>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-muted-foreground mt-1">
+                    {formatTime(message.created_at)}
+                  </span>
+                </div>
               </div>
             );
           })
