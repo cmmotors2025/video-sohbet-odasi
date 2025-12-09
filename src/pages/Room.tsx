@@ -1,11 +1,12 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Copy, ArrowLeft, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ChatBox } from '@/components/ChatBox';
 import { VoiceControls } from '@/components/VoiceControls';
 import { ParticipantsDialog } from '@/components/ParticipantsDialog';
+import { SpeakingAvatars } from '@/components/SpeakingAvatars';
 import { useRoom } from '@/hooks/useRoom';
 import { useChat } from '@/hooks/useChat';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
@@ -16,7 +17,7 @@ import { toast } from '@/hooks/use-toast';
 const Room = () => {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const [copied, setCopied] = useState(false);
+  const [participantsOpen, setParticipantsOpen] = useState(false);
   
   const { user, profile } = useAuth();
 
@@ -70,18 +71,6 @@ const Room = () => {
     });
   }, [voiceParticipants, updateSpeakingStatus]);
 
-  const handleCopyCode = async () => {
-    if (code) {
-      await navigator.clipboard.writeText(code);
-      setCopied(true);
-      toast({
-        title: 'Kopyalandı!',
-        description: 'Oda kodu panoya kopyalandı',
-      });
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
   if (roomLoading) {
     return (
       <div className="min-h-screen cinema-gradient flex items-center justify-center">
@@ -121,23 +110,14 @@ const Room = () => {
           <ArrowLeft className="w-5 h-5" />
         </Button>
 
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/30">
-            <span className="text-sm font-medium tracking-wider">{code}</span>
-            <Button
-              onClick={handleCopyCode}
-              variant="ghost"
-              size="icon"
-              className="w-6 h-6 text-muted-foreground hover:text-foreground"
-            >
-              {copied ? (
-                <Check className="w-3.5 h-3.5 text-primary" />
-              ) : (
-                <Copy className="w-3.5 h-3.5" />
-              )}
-            </Button>
-          </div>
-        </div>
+        {/* Speaking avatars in center */}
+        <SpeakingAvatars
+          participants={presenceParticipants}
+          currentUserMicEnabled={isMicEnabled && voiceConnected}
+          currentUserAvatar={profile?.avatar_url || null}
+          currentUserUsername={profile?.username || 'Anonim'}
+          onClick={() => setParticipantsOpen(true)}
+        />
 
         <div className="flex items-center gap-2">
           <VoiceControls
@@ -150,15 +130,20 @@ const Room = () => {
             onConnect={connectVoice}
             onDisconnect={disconnectVoice}
           />
-          <ParticipantsDialog
-            participants={presenceParticipants}
-            isOwner={isOwner}
-            currentUser={currentUser}
-            isMicEnabled={isMicEnabled}
-            isConnected={voiceConnected}
-          />
         </div>
       </header>
+
+      {/* Participants Dialog */}
+      <ParticipantsDialog
+        participants={presenceParticipants}
+        isOwner={isOwner}
+        currentUser={currentUser}
+        isMicEnabled={isMicEnabled}
+        isConnected={voiceConnected}
+        roomCode={code || ''}
+        open={participantsOpen}
+        onOpenChange={setParticipantsOpen}
+      />
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden pb-0">
