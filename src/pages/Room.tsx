@@ -42,7 +42,7 @@ const Room = () => {
   } = useChat(room?.id, profile, user?.id);
 
   // Room presence for tracking all users in the room
-  const { participants: presenceParticipants, updateSpeakingStatus } = useRoomPresence({
+  const { participants: presenceParticipants, trackSpeakingStatus } = useRoomPresence({
     roomCode: code || '',
     userId: user?.id,
     username: profile?.username,
@@ -64,12 +64,12 @@ const Room = () => {
     toggleMic,
   } = useVoiceChat(code, room?.id, handleParticipantJoin, profile?.username);
 
-  // Merge voice speaking status with presence participants
+  // Broadcast mic status to presence when it changes
   useEffect(() => {
-    voiceParticipants.forEach((voiceP, id) => {
-      updateSpeakingStatus(id, voiceP.isSpeaking);
-    });
-  }, [voiceParticipants, updateSpeakingStatus]);
+    if (voiceConnected) {
+      trackSpeakingStatus(isMicEnabled);
+    }
+  }, [isMicEnabled, voiceConnected, trackSpeakingStatus]);
 
   if (roomLoading) {
     return (
@@ -129,6 +129,7 @@ const Room = () => {
             onToggleMic={toggleMic}
             onConnect={connectVoice}
             onDisconnect={disconnectVoice}
+            onOpenParticipants={() => setParticipantsOpen(true)}
           />
         </div>
       </header>
