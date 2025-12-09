@@ -163,7 +163,7 @@ const Room = () => {
         </div>
 
         {/* Chat Section - smaller, max height */}
-        <div className="flex-[2] min-h-0 max-h-[45vh] px-2 pb-2 flex flex-col">
+        <div className="flex-[2] min-h-0 max-h-[45vh] px-2 pb-2 -mt-4 flex flex-col">
           <ChatBox
             messages={messages}
             currentUserId={userId || ''}
