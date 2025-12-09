@@ -1,4 +1,4 @@
-import { Mic, MicOff, Loader2, Phone, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Loader2, PhoneOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -28,6 +28,7 @@ export const VoiceControls = ({
   onConnect,
   onDisconnect,
 }: VoiceControlsProps) => {
+  // Bağlanıyor durumu
   if (isConnecting) {
     return (
       <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-secondary/50 border border-border/30">
@@ -37,6 +38,7 @@ export const VoiceControls = ({
     );
   }
 
+  // Hata durumu - tekrar dene butonu
   if (error) {
     return (
       <TooltipProvider>
@@ -44,44 +46,33 @@ export const VoiceControls = ({
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={onConnect}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 text-xs"
             >
-              <PhoneOff className="w-4 h-4" />
+              <PhoneOff className="w-4 h-4 mr-1" />
+              Tekrar Dene
             </Button>
           </TooltipTrigger>
           <TooltipContent>
             <p>{error}</p>
-            <p className="text-xs text-muted-foreground">Tekrar denemek için tıkla</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
     );
   }
 
+  // Henüz bağlanmadı - otomatik bağlanmayı bekliyor
   if (!isConnected) {
     return (
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onConnect}
-              className="text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-            >
-              <Phone className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Sesli sohbete bağlan</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+      <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-secondary/50 border border-border/30">
+        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+        <span className="text-xs text-muted-foreground">Bağlanıyor...</span>
+      </div>
     );
   }
 
+  // Bağlı durumu - mikrofon kontrolleri
   return (
     <div className="flex items-center gap-1">
       <TooltipProvider>
