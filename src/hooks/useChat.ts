@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getUserId, getUsername } from '@/lib/user';
+import { getUserId, getUsername, getAvatar } from '@/lib/user';
 
 interface Message {
   id: string;
@@ -10,6 +10,7 @@ interface Message {
   content: string;
   created_at: string;
   image_url?: string | null;
+  avatar_url?: string | null;
 }
 
 export const useChat = (roomId: string | undefined) => {
@@ -127,6 +128,7 @@ export const useChat = (roomId: string | undefined) => {
         username: username || 'Anonim',
         content: content.trim(),
         image_url: imageUrl,
+        avatar_url: getAvatar(),
       });
 
     if (error) {
