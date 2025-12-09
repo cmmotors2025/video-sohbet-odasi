@@ -448,17 +448,38 @@ export const VideoPlayer = ({
           if (document.fullscreenElement) {
             document.exitFullscreen();
           } else {
-            iframe.requestFullscreen();
+            // Try standard fullscreen first, then webkit
+            if (iframe.requestFullscreen) {
+              iframe.requestFullscreen();
+            } else if ((iframe as any).webkitRequestFullscreen) {
+              (iframe as any).webkitRequestFullscreen();
+            }
           }
         }
       } catch (e) {
         console.error('YouTube fullscreen error:', e);
       }
     } else if (videoRef.current) {
-      if (document.fullscreenElement) {
+      const video = videoRef.current as HTMLVideoElement & {
+        webkitEnterFullscreen?: () => void;
+        webkitExitFullscreen?: () => void;
+        webkitDisplayingFullscreen?: boolean;
+        webkitSupportsFullscreen?: boolean;
+      };
+
+      // iOS Safari uses webkitEnterFullscreen on video element
+      if (video.webkitSupportsFullscreen && video.webkitEnterFullscreen) {
+        if (video.webkitDisplayingFullscreen) {
+          video.webkitExitFullscreen?.();
+        } else {
+          video.webkitEnterFullscreen();
+        }
+      } else if (document.fullscreenElement) {
         document.exitFullscreen();
-      } else {
-        videoRef.current.requestFullscreen();
+      } else if (video.requestFullscreen) {
+        video.requestFullscreen();
+      } else if ((video as any).webkitRequestFullscreen) {
+        (video as any).webkitRequestFullscreen();
       }
     }
   };

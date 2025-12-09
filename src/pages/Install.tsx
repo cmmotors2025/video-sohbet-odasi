@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Download, Smartphone, Share, MoreVertical, Plus } from "lucide-react";
+import { Download, Smartphone, Share, MoreVertical, Plus, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -14,18 +15,27 @@ const Install = () => {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isSafari, setIsSafari] = useState(false);
+  const [isStandalone, setIsStandalone] = useState(false);
 
   useEffect(() => {
-    // Check if already installed
-    if (window.matchMedia("(display-mode: standalone)").matches) {
+    // Check if in standalone mode (already installed as PWA)
+    const standalone = window.matchMedia("(display-mode: standalone)").matches || 
+                       (window.navigator as any).standalone === true;
+    setIsStandalone(standalone);
+    if (standalone) {
       setIsInstalled(true);
     }
 
-    // Check if iOS
-    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    // Detect iOS device
+    const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
 
-    // Listen for install prompt
+    // Detect Safari browser (not Chrome, Firefox etc on iOS)
+    const isSafariBrowser = /^((?!chrome|android|crios|fxios|opera).)*safari/i.test(navigator.userAgent);
+    setIsSafari(isSafariBrowser);
+
+    // Listen for install prompt (Android/Desktop Chrome)
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e as BeforeInstallPromptEvent);
@@ -49,6 +59,9 @@ const Install = () => {
     }
     setDeferredPrompt(null);
   };
+
+  // iOS but not Safari - show warning
+  const isNonSafariIOS = isIOS && !isSafari;
 
   if (isInstalled) {
     return (
@@ -86,6 +99,17 @@ const Install = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* iOS but NOT Safari - Show warning */}
+          {isNonSafariIOS && (
+            <Alert className="border-yellow-500/50 bg-yellow-500/10">
+              <AlertTriangle className="h-4 w-4 text-yellow-500" />
+              <AlertDescription className="text-yellow-200">
+                <strong>Safari Kullan!</strong> iOS'ta uygulama yüklemek için Safari tarayıcısını kullanman gerekiyor. 
+                Bu sayfayı Safari'de aç.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {deferredPrompt ? (
             <Button onClick={handleInstall} className="w-full" size="lg">
               <Download className="w-5 h-5 mr-2" />
@@ -94,23 +118,37 @@ const Install = () => {
           ) : isIOS ? (
             <div className="space-y-4">
               <p className="text-sm text-muted-foreground text-center">
-                iOS cihazlarda yüklemek için:
+                {isSafari ? "Safari'de yüklemek için:" : "Önce Safari'de bu sayfayı aç, sonra:"}
               </p>
               <div className="space-y-3">
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
                   <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <Share className="w-4 h-4 text-primary" />
+                    <span className="text-primary font-bold text-sm">1</span>
                   </div>
-                  <p className="text-sm text-foreground">
-                    1. Safari'de <strong>Paylaş</strong> butonuna tıkla
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <Share className="w-5 h-5 text-primary" />
+                    <p className="text-sm text-foreground">
+                      Alt menüden <strong>Paylaş</strong> butonuna tıkla
+                    </p>
+                  </div>
                 </div>
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
                   <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <Plus className="w-4 h-4 text-primary" />
+                    <span className="text-primary font-bold text-sm">2</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Plus className="w-5 h-5 text-primary" />
+                    <p className="text-sm text-foreground">
+                      <strong>"Ana Ekrana Ekle"</strong> seçeneğine tıkla
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
+                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                    <span className="text-primary font-bold text-sm">3</span>
                   </div>
                   <p className="text-sm text-foreground">
-                    2. <strong>"Ana Ekrana Ekle"</strong> seç
+                    Sağ üstten <strong>"Ekle"</strong> butonuna tıkla
                   </p>
                 </div>
               </div>
