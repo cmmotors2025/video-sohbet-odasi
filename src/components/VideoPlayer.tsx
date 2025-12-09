@@ -1,6 +1,6 @@
 import { useRef, useEffect, useState } from 'react';
 import Hls from 'hls.js';
-import { Play, Pause, RotateCcw, RotateCw, Link, Loader2, Maximize2, Eye, EyeOff } from 'lucide-react';
+import { Play, Pause, RotateCcw, RotateCw, Link, Loader2, Maximize2, Eye, EyeOff, PictureInPicture2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
@@ -41,6 +41,7 @@ export const VideoPlayer = ({
   const [controlsVisible, setControlsVisible] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [isPiP, setIsPiP] = useState(false);
 
   // Calculate smart sync time for new joiners only
   const calculateSyncTime = (forInitialSync = false) => {
@@ -233,6 +234,37 @@ export const VideoPlayer = ({
     }
   };
 
+  const handlePiP = async () => {
+    if (!videoRef.current) return;
+    
+    try {
+      if (document.pictureInPictureElement) {
+        await document.exitPictureInPicture();
+      } else if (document.pictureInPictureEnabled) {
+        await videoRef.current.requestPictureInPicture();
+      }
+    } catch (error) {
+      console.error('PiP Error:', error);
+    }
+  };
+
+  // PiP event listeners
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handleEnterPiP = () => setIsPiP(true);
+    const handleLeavePiP = () => setIsPiP(false);
+
+    video.addEventListener('enterpictureinpicture', handleEnterPiP);
+    video.addEventListener('leavepictureinpicture', handleLeavePiP);
+
+    return () => {
+      video.removeEventListener('enterpictureinpicture', handleEnterPiP);
+      video.removeEventListener('leavepictureinpicture', handleLeavePiP);
+    };
+  }, [videoUrl]);
+
   return (
     <div className="relative w-full bg-cinema-dark rounded-lg overflow-hidden">
       {/* Video Container */}
@@ -255,15 +287,29 @@ export const VideoPlayer = ({
               webkit-playsinline="true"
               x5-playsinline="true"
             />
-            {/* Fullscreen Button - Always visible */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleFullscreen}
-              className="absolute top-2 right-2 text-foreground/70 hover:text-foreground hover:bg-secondary/50"
-            >
-              <Maximize2 className="w-5 h-5" />
-            </Button>
+            {/* PiP & Fullscreen Buttons - Always visible */}
+            <div className="absolute top-2 right-2 flex gap-1">
+              {document.pictureInPictureEnabled && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handlePiP}
+                  className={`text-foreground/70 hover:text-foreground hover:bg-secondary/50 ${isPiP ? 'text-primary' : ''}`}
+                  title="Mini Oynatıcı"
+                >
+                  <PictureInPicture2 className="w-5 h-5" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleFullscreen}
+                className="text-foreground/70 hover:text-foreground hover:bg-secondary/50"
+                title="Tam Ekran"
+              >
+                <Maximize2 className="w-5 h-5" />
+              </Button>
+            </div>
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-cinema-dark/80">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
