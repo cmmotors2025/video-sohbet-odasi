@@ -249,16 +249,16 @@ export const useVoiceChat = (
     }
   }, [state.isMicEnabled]);
 
-  // Auto-connect when room code is available
+  // Auto-connect when room code AND username are available
   useEffect(() => {
-    if (roomCode && !state.isConnected && !state.isConnecting) {
+    if (roomCode && username && !state.isConnected && !state.isConnecting) {
       connect();
     }
 
     return () => {
       disconnect();
     };
-  }, [roomCode]);
+  }, [roomCode, username]);
 
   return {
     ...state,
