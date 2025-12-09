@@ -43,6 +43,7 @@ export const VideoPlayer = ({
   const [duration, setDuration] = useState(0);
   const [isPiP, setIsPiP] = useState(false);
   const wasPlayingBeforePiP = useRef(false);
+  const justExitedPiP = useRef(false);
 
   // Calculate smart sync time for new joiners only
   const calculateSyncTime = (forInitialSync = false) => {
@@ -249,7 +250,7 @@ export const VideoPlayer = ({
     }
   };
 
-  // PiP event listeners
+  // PiP event listeners - Mobile-optimized with retry mechanism
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -259,20 +260,59 @@ export const VideoPlayer = ({
       // PiP'e girerken video oynuyor muydu kaydet
       wasPlayingBeforePiP.current = !video.paused;
     };
+
     const handleLeavePiP = () => {
       setIsPiP(false);
-      // PiP'e girmeden önce video oynuyorduysa, çıkınca devam ettir
-      if (wasPlayingBeforePiP.current && video.paused) {
+      justExitedPiP.current = true;
+
+      // Mobil tarayıcılar pause işlemini gecikmeli yapıyor
+      // Bu yüzden birkaç kez deneyelim
+      const attemptPlay = (attempts = 5) => {
+        if (wasPlayingBeforePiP.current && video.paused && attempts > 0) {
+          video.play().catch(() => {
+            setTimeout(() => attemptPlay(attempts - 1), 100);
+          });
+        }
+      };
+
+      // İlk deneme hemen, sonra gecikmeli
+      setTimeout(() => attemptPlay(), 50);
+
+      // 1 saniye sonra flag'i temizle
+      setTimeout(() => {
+        justExitedPiP.current = false;
+      }, 1000);
+    };
+
+    // PiP çıkışı nedeniyle pause olursa yakala
+    const handlePause = () => {
+      if (justExitedPiP.current && wasPlayingBeforePiP.current) {
+        video.play().catch(console.error);
+      }
+    };
+
+    // Sayfa görünür olunca kontrol et (mobil için kritik)
+    const handleVisibilityChange = () => {
+      if (
+        document.visibilityState === 'visible' &&
+        justExitedPiP.current &&
+        wasPlayingBeforePiP.current &&
+        video.paused
+      ) {
         video.play().catch(console.error);
       }
     };
 
     video.addEventListener('enterpictureinpicture', handleEnterPiP);
     video.addEventListener('leavepictureinpicture', handleLeavePiP);
+    video.addEventListener('pause', handlePause);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
       video.removeEventListener('enterpictureinpicture', handleEnterPiP);
       video.removeEventListener('leavepictureinpicture', handleLeavePiP);
+      video.removeEventListener('pause', handlePause);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [videoUrl]);
 
