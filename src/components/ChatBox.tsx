@@ -202,7 +202,7 @@ export const ChatBox = ({
                   </span>
                   <div
                     className={cn(
-                      'max-w-[70%] px-3 py-2 rounded-2xl',
+                      'max-w-[85%] px-3 py-2 rounded-2xl',
                       isOwn 
                         ? 'bg-chat-own text-foreground rounded-tr-sm' 
                         : 'bg-chat-bubble text-foreground rounded-tl-sm'
