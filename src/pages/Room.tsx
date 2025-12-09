@@ -1,23 +1,23 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Copy, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { VideoPlayer } from '@/components/VideoPlayer';
 import { ChatBox } from '@/components/ChatBox';
-import { UsernamePrompt } from '@/components/UsernamePrompt';
 import { VoiceControls } from '@/components/VoiceControls';
 import { ParticipantsDialog } from '@/components/ParticipantsDialog';
 import { useRoom } from '@/hooks/useRoom';
 import { useChat } from '@/hooks/useChat';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
-import { getUsername } from '@/lib/user';
+import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 
 const Room = () => {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
-  const [needsUsername, setNeedsUsername] = useState(false);
   const [copied, setCopied] = useState(false);
+  
+  const { user, profile } = useAuth();
 
   const {
     room,
@@ -28,7 +28,7 @@ const Room = () => {
     updateVideoUrl,
     updatePlaybackState,
     seekTo,
-  } = useRoom(code || '');
+  } = useRoom(code || '', user?.id);
 
   const {
     messages,
@@ -37,7 +37,7 @@ const Room = () => {
     sendSystemMessage,
     clearMessages,
     userId,
-  } = useChat(room?.id);
+  } = useChat(room?.id, profile, user?.id);
 
   const handleParticipantJoin = useCallback((name: string) => {
     sendSystemMessage(`${name} katıldı`);
@@ -52,14 +52,7 @@ const Room = () => {
     connect: connectVoice,
     disconnect: disconnectVoice,
     toggleMic,
-  } = useVoiceChat(code, room?.id, handleParticipantJoin);
-
-  useEffect(() => {
-    const username = getUsername();
-    if (!username) {
-      setNeedsUsername(true);
-    }
-  }, []);
+  } = useVoiceChat(code, room?.id, handleParticipantJoin, profile?.username);
 
   const handleCopyCode = async () => {
     if (code) {
@@ -91,10 +84,6 @@ const Room = () => {
         </Button>
       </div>
     );
-  }
-
-  if (needsUsername) {
-    return <UsernamePrompt onComplete={() => setNeedsUsername(false)} />;
   }
 
   return (
@@ -142,7 +131,7 @@ const Room = () => {
           <ParticipantsDialog
             participants={voiceParticipants}
             isOwner={isOwner}
-            currentUsername={getUsername() || 'Anonim'}
+            currentUsername={profile?.username || 'Anonim'}
             isMicEnabled={isMicEnabled}
             isConnected={voiceConnected}
           />
@@ -169,7 +158,7 @@ const Room = () => {
         <div className="flex-1 min-h-0 px-2 pt-1 flex flex-col">
           <ChatBox
             messages={messages}
-            currentUserId={userId}
+            currentUserId={userId || ''}
             onSendMessage={sendMessage}
             onClearMessages={clearMessages}
             isOwner={isOwner}

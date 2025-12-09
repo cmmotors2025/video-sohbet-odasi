@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getUserId } from '@/lib/user';
 
 interface Room {
   id: string;
@@ -18,13 +17,12 @@ interface VideoState {
   updated_at: string;
 }
 
-export const useRoom = (roomCode: string) => {
+export const useRoom = (roomCode: string, userId: string | undefined) => {
   const [room, setRoom] = useState<Room | null>(null);
   const [videoState, setVideoState] = useState<VideoState | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  const userId = getUserId();
   const isOwner = room?.owner_id === userId;
 
   const fetchRoom = useCallback(async () => {
