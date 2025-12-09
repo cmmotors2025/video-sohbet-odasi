@@ -8,11 +8,16 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { RoomParticipant } from '@/hooks/useRoomPresence';
 
 interface ParticipantsDialogProps {
-  participants: Map<string, { name: string; isSpeaking: boolean }>;
+  participants: Map<string, RoomParticipant>;
   isOwner: boolean;
-  currentUsername: string;
+  currentUser: {
+    id: string;
+    username: string;
+    avatar_url: string | null;
+  };
   isMicEnabled: boolean;
   isConnected: boolean;
 }
@@ -20,13 +25,12 @@ interface ParticipantsDialogProps {
 export const ParticipantsDialog = ({
   participants,
   isOwner,
-  currentUsername,
+  currentUser,
   isMicEnabled,
   isConnected,
 }: ParticipantsDialogProps) => {
   const participantList = Array.from(participants.entries());
-  // Total count: other participants + current user (if connected)
-  const totalCount = isConnected ? participantList.length + 1 : participantList.length;
+  const totalCount = participantList.length + 1; // Always include current user
 
   return (
     <Dialog>
@@ -48,20 +52,25 @@ export const ParticipantsDialog = ({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-2 max-h-60 overflow-y-auto">
-          {/* Current user - only show if connected */}
-          {isConnected && (
-            <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10">
-              <div className="flex items-center gap-2">
-                {isOwner && <Crown className="w-4 h-4 text-yellow-500" />}
-                <span className="text-sm font-medium">{currentUsername} (Sen)</span>
-              </div>
-              {isMicEnabled ? (
+          {/* Current user - always show */}
+          <div className="flex items-center justify-between p-2 rounded-lg bg-primary/10">
+            <div className="flex items-center gap-2">
+              <img
+                src={currentUser.avatar_url || '/placeholder.svg'}
+                alt={currentUser.username}
+                className="w-8 h-8 rounded-full object-cover border-2 border-primary/30"
+              />
+              {isOwner && <Crown className="w-4 h-4 text-yellow-500" />}
+              <span className="text-sm font-medium">{currentUser.username} (Sen)</span>
+            </div>
+            {isConnected && (
+              isMicEnabled ? (
                 <Mic className="w-4 h-4 text-primary" />
               ) : (
                 <MicOff className="w-4 h-4 text-muted-foreground" />
-              )}
-            </div>
-          )}
+              )
+            )}
+          </div>
 
           {/* Other participants */}
           {participantList.map(([id, participant]) => (
@@ -72,7 +81,14 @@ export const ParticipantsDialog = ({
                 participant.isSpeaking && 'ring-2 ring-primary'
               )}
             >
-              <span className="text-sm">{participant.name}</span>
+              <div className="flex items-center gap-2">
+                <img
+                  src={participant.avatar_url || '/placeholder.svg'}
+                  alt={participant.username}
+                  className="w-8 h-8 rounded-full object-cover border-2 border-secondary"
+                />
+                <span className="text-sm">{participant.username}</span>
+              </div>
               {participant.isSpeaking ? (
                 <Mic className="w-4 h-4 text-primary animate-pulse" />
               ) : (
