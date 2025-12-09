@@ -9,6 +9,7 @@ import Index from "./pages/Index";
 import Room from "./pages/Room";
 import Auth from "./pages/Auth";
 import Profile from "./pages/Profile";
+import Install from "./pages/Install";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -54,6 +55,7 @@ const App = () => (
               <Profile />
             </ProtectedRoute>
           } />
+          <Route path="/install" element={<Install />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
