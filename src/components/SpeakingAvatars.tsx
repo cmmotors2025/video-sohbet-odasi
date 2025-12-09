@@ -1,3 +1,4 @@
+import { MicOff } from 'lucide-react';
 import { RoomParticipant } from '@/hooks/useRoomPresence';
 
 interface SpeakingAvatarsProps {
@@ -15,10 +16,8 @@ export const SpeakingAvatars = ({
   currentUserUsername,
   onClick,
 }: SpeakingAvatarsProps) => {
-  // Get participants with microphone enabled (isSpeaking means mic is on in our context)
   const speakingParticipants = Array.from(participants.values()).filter(p => p.isSpeaking);
   
-  // Collect all avatars to show
   const avatarsToShow: { avatar: string | null; username: string; isCurrentUser: boolean }[] = [];
   
   if (currentUserMicEnabled) {
@@ -45,7 +44,7 @@ export const SpeakingAvatars = ({
       className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/30 hover:bg-secondary/70 transition-colors"
     >
       {noOneSpeaking ? (
-        <span className="text-xs text-muted-foreground">Sessiz</span>
+        <MicOff className="w-5 h-5 text-muted-foreground" />
       ) : (
         <div className="flex -space-x-2">
           {avatarsToShow.slice(0, 5).map((item, index) => (

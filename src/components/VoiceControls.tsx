@@ -16,6 +16,7 @@ interface VoiceControlsProps {
   onToggleMic: () => void;
   onConnect: () => void;
   onDisconnect: () => void;
+  onOpenParticipants: () => void;
 }
 
 export const VoiceControls = ({
@@ -27,6 +28,7 @@ export const VoiceControls = ({
   onToggleMic,
   onConnect,
   onDisconnect,
+  onOpenParticipants,
 }: VoiceControlsProps) => {
   // Bağlanıyor durumu
   if (isConnecting) {
@@ -107,14 +109,14 @@ export const VoiceControls = ({
             <Button
               variant="ghost"
               size="icon"
-              onClick={onDisconnect}
+              onClick={onOpenParticipants}
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
             >
               <PhoneOff className="w-4 h-4" />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>Sesli sohbetten ayrıl</p>
+            <p>Katılımcıları göster</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
