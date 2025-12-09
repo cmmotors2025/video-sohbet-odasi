@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import Hls from 'hls.js';
 import { Play, Pause, RotateCcw, RotateCw, Link, Loader2, Maximize2, Eye, EyeOff, PictureInPicture2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,58 @@ interface VideoPlayerProps {
   lastUpdated: string | null;
 }
 
+// YouTube URL'den video ID çıkar
+const getYouTubeVideoId = (url: string): string | null => {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=)([^&\s]+)/,
+    /(?:youtu\.be\/)([^?\s]+)/,
+    /(?:youtube\.com\/embed\/)([^?\s]+)/,
+    /(?:youtube\.com\/shorts\/)([^?\s]+)/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+};
+
+declare global {
+  interface Window {
+    YT: {
+      Player: new (
+        elementId: string | HTMLElement,
+        options: {
+          videoId: string;
+          playerVars?: Record<string, number | string>;
+          events?: {
+            onReady?: (event: { target: YTPlayer }) => void;
+            onStateChange?: (event: { data: number; target: YTPlayer }) => void;
+            onError?: (event: { data: number }) => void;
+          };
+        }
+      ) => YTPlayer;
+      PlayerState: {
+        PLAYING: number;
+        PAUSED: number;
+        ENDED: number;
+        BUFFERING: number;
+      };
+    };
+    onYouTubeIframeAPIReady: () => void;
+  }
+}
+
+interface YTPlayer {
+  playVideo: () => void;
+  pauseVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
+  getPlayerState: () => number;
+  destroy: () => void;
+  getIframe: () => HTMLIFrameElement;
+}
+
 export const VideoPlayer = ({
   videoUrl,
   isPlaying,
@@ -35,6 +87,8 @@ export const VideoPlayer = ({
 }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
+  const youtubePlayerRef = useRef<YTPlayer | null>(null);
+  const youtubeContainerRef = useRef<HTMLDivElement>(null);
   const [urlInput, setUrlInput] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,22 +98,136 @@ export const VideoPlayer = ({
   const [isPiP, setIsPiP] = useState(false);
   const wasPlayingBeforePiP = useRef(false);
   const justExitedPiP = useRef(false);
+  const [ytApiReady, setYtApiReady] = useState(false);
+
+  const isYouTube = videoUrl ? getYouTubeVideoId(videoUrl) !== null : false;
+  const youtubeVideoId = videoUrl ? getYouTubeVideoId(videoUrl) : null;
+
+  // YouTube API yükle
+  useEffect(() => {
+    if (window.YT && window.YT.Player) {
+      setYtApiReady(true);
+      return;
+    }
+
+    const existingScript = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    if (existingScript) {
+      window.onYouTubeIframeAPIReady = () => setYtApiReady(true);
+      return;
+    }
+
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    const firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag);
+
+    window.onYouTubeIframeAPIReady = () => {
+      setYtApiReady(true);
+    };
+  }, []);
 
   // Calculate smart sync time for new joiners only
-  const calculateSyncTime = (forInitialSync = false) => {
-    // Only add elapsed time for initial sync of new joiners
+  const calculateSyncTime = useCallback((forInitialSync = false) => {
     if (forInitialSync && isPlaying && lastUpdated) {
       const elapsed = (Date.now() - new Date(lastUpdated).getTime()) / 1000;
-      // Cap elapsed time to prevent jumping too far ahead
       const cappedElapsed = Math.min(elapsed, 10);
       return playbackTime + cappedElapsed;
     }
     return playbackTime;
-  };
+  }, [isPlaying, lastUpdated, playbackTime]);
 
-  // Initialize HLS
+  // YouTube Player başlat
   useEffect(() => {
-    if (!videoUrl || !videoRef.current) return;
+    if (!isYouTube || !youtubeVideoId || !ytApiReady || !youtubeContainerRef.current) return;
+
+    setIsLoading(true);
+
+    // Eski player'ı temizle
+    if (youtubePlayerRef.current) {
+      youtubePlayerRef.current.destroy();
+      youtubePlayerRef.current = null;
+    }
+
+    // Container'ı temizle ve yeni div ekle
+    if (youtubeContainerRef.current) {
+      youtubeContainerRef.current.innerHTML = '';
+      const playerDiv = document.createElement('div');
+      playerDiv.id = 'youtube-player-' + Date.now();
+      youtubeContainerRef.current.appendChild(playerDiv);
+
+      const player = new window.YT.Player(playerDiv, {
+        videoId: youtubeVideoId,
+        playerVars: {
+          autoplay: isPlaying ? 1 : 0,
+          controls: 0,
+          modestbranding: 1,
+          rel: 0,
+          playsinline: 1,
+          enablejsapi: 1,
+          origin: window.location.origin,
+        },
+        events: {
+          onReady: (event) => {
+            setIsLoading(false);
+            const targetTime = calculateSyncTime(true);
+            event.target.seekTo(targetTime, true);
+            if (isPlaying) {
+              event.target.playVideo();
+            }
+            setDuration(event.target.getDuration());
+          },
+          onStateChange: (event) => {
+            // Owner için durum değişikliklerini yakala
+            if (isOwner) {
+              const playerState = event.data;
+              if (playerState === window.YT.PlayerState.PLAYING) {
+                setCurrentTime(event.target.getCurrentTime());
+              } else if (playerState === window.YT.PlayerState.PAUSED) {
+                setCurrentTime(event.target.getCurrentTime());
+              }
+            }
+          },
+          onError: (event) => {
+            console.error('YouTube Error:', event.data);
+            setIsLoading(false);
+          },
+        },
+      });
+
+      youtubePlayerRef.current = player;
+    }
+
+    return () => {
+      if (youtubePlayerRef.current) {
+        youtubePlayerRef.current.destroy();
+        youtubePlayerRef.current = null;
+      }
+    };
+  }, [youtubeVideoId, ytApiReady, isYouTube]);
+
+  // YouTube için zaman takibi
+  useEffect(() => {
+    if (!isYouTube || !youtubePlayerRef.current || !isOwner) return;
+
+    const interval = setInterval(() => {
+      if (youtubePlayerRef.current) {
+        try {
+          const time = youtubePlayerRef.current.getCurrentTime();
+          const dur = youtubePlayerRef.current.getDuration();
+          setCurrentTime(time);
+          if (dur > 0) setDuration(dur);
+        } catch (e) {
+          // Player henüz hazır değil
+        }
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isYouTube, isOwner]);
+
+  // Initialize HLS (only for non-YouTube)
+  useEffect(() => {
+    if (!videoUrl || !videoRef.current || isYouTube) return;
 
     setIsLoading(true);
 
@@ -79,7 +247,6 @@ export const VideoPlayer = ({
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
         setIsLoading(false);
         if (videoRef.current) {
-          // Smart sync: calculate real-time position for new joiners
           const targetTime = calculateSyncTime(true);
           videoRef.current.currentTime = targetTime;
           if (isPlaying) {
@@ -113,11 +280,11 @@ export const VideoPlayer = ({
         hlsRef.current.destroy();
       }
     };
-  }, [videoUrl]);
+  }, [videoUrl, isYouTube]);
 
-  // Track current time and duration for progress bar (owner only)
+  // Track current time and duration for progress bar (owner only, HLS)
   useEffect(() => {
-    if (!videoRef.current || !isOwner) return;
+    if (!videoRef.current || !isOwner || isYouTube) return;
     
     const video = videoRef.current;
     
@@ -142,68 +309,115 @@ export const VideoPlayer = ({
       video.removeEventListener('loadedmetadata', handleLoadedMetadata);
       video.removeEventListener('durationchange', handleDurationChange);
     };
-  }, [videoUrl, isOwner]);
+  }, [videoUrl, isOwner, isYouTube]);
 
   // Track last explicit owner action timestamp to detect real updates
   const lastOwnerActionRef = useRef<string | null>(null);
 
   // Sync playback state from owner ONLY when owner makes explicit action
-  // Owner actions: play/pause button, seek button - these update lastUpdated
   useEffect(() => {
-    if (!videoRef.current || isOwner) return;
+    if (isOwner) return;
     
     // Only sync if lastUpdated changed (owner made an explicit action)
     if (lastUpdated === lastOwnerActionRef.current) {
-      return; // No new owner action, don't sync
+      return;
     }
     
-    // This is a new owner action
     lastOwnerActionRef.current = lastUpdated;
     
-    const video = videoRef.current;
-    
-    // Sync time position
-    video.currentTime = playbackTime;
-    
-    // Sync play/pause state
-    if (isPlaying && video.paused) {
-      video.play().catch(console.error);
-    } else if (!isPlaying && !video.paused) {
-      video.pause();
+    if (isYouTube && youtubePlayerRef.current) {
+      try {
+        youtubePlayerRef.current.seekTo(playbackTime, true);
+        if (isPlaying) {
+          youtubePlayerRef.current.playVideo();
+        } else {
+          youtubePlayerRef.current.pauseVideo();
+        }
+      } catch (e) {
+        // Player henüz hazır değil
+      }
+    } else if (videoRef.current) {
+      const video = videoRef.current;
+      video.currentTime = playbackTime;
+      
+      if (isPlaying && video.paused) {
+        video.play().catch(console.error);
+      } else if (!isPlaying && !video.paused) {
+        video.pause();
+      }
     }
-  }, [lastUpdated, isPlaying, playbackTime, isOwner]);
+  }, [lastUpdated, isPlaying, playbackTime, isOwner, isYouTube]);
 
   const handlePlayPause = () => {
-    if (!videoRef.current || !isOwner) return;
+    if (!isOwner) return;
     
-    const video = videoRef.current;
-    const newIsPlaying = video.paused;
-    
-    if (newIsPlaying) {
-      video.play().catch(console.error);
-    } else {
-      video.pause();
+    if (isYouTube && youtubePlayerRef.current) {
+      try {
+        const state = youtubePlayerRef.current.getPlayerState();
+        const currentTimeYT = youtubePlayerRef.current.getCurrentTime();
+        const newIsPlaying = state !== window.YT.PlayerState.PLAYING;
+        
+        if (newIsPlaying) {
+          youtubePlayerRef.current.playVideo();
+        } else {
+          youtubePlayerRef.current.pauseVideo();
+        }
+        
+        onPlayPause(newIsPlaying, currentTimeYT);
+      } catch (e) {
+        console.error('YouTube play/pause error:', e);
+      }
+    } else if (videoRef.current) {
+      const video = videoRef.current;
+      const newIsPlaying = video.paused;
+      
+      if (newIsPlaying) {
+        video.play().catch(console.error);
+      } else {
+        video.pause();
+      }
+      
+      onPlayPause(newIsPlaying, video.currentTime);
     }
-    
-    onPlayPause(newIsPlaying, video.currentTime);
   };
 
   const handleSeek = (seconds: number) => {
-    if (!videoRef.current || !isOwner) return;
+    if (!isOwner) return;
     
-    const video = videoRef.current;
-    const newTime = Math.max(0, video.currentTime + seconds);
-    video.currentTime = newTime;
-    onSeek(newTime);
+    if (isYouTube && youtubePlayerRef.current) {
+      try {
+        const currentTimeYT = youtubePlayerRef.current.getCurrentTime();
+        const newTime = Math.max(0, currentTimeYT + seconds);
+        youtubePlayerRef.current.seekTo(newTime, true);
+        onSeek(newTime);
+      } catch (e) {
+        console.error('YouTube seek error:', e);
+      }
+    } else if (videoRef.current) {
+      const video = videoRef.current;
+      const newTime = Math.max(0, video.currentTime + seconds);
+      video.currentTime = newTime;
+      onSeek(newTime);
+    }
   };
 
   const handleSliderSeek = (value: number[]) => {
-    if (!videoRef.current || !isOwner) return;
+    if (!isOwner) return;
     
-    const video = videoRef.current;
     const newTime = value[0];
-    video.currentTime = newTime;
-    onSeek(newTime);
+    
+    if (isYouTube && youtubePlayerRef.current) {
+      try {
+        youtubePlayerRef.current.seekTo(newTime, true);
+        onSeek(newTime);
+      } catch (e) {
+        console.error('YouTube slider seek error:', e);
+      }
+    } else if (videoRef.current) {
+      const video = videoRef.current;
+      video.currentTime = newTime;
+      onSeek(newTime);
+    }
   };
 
   const formatTime = (time: number) => {
@@ -227,7 +441,20 @@ export const VideoPlayer = ({
   };
 
   const handleFullscreen = () => {
-    if (videoRef.current) {
+    if (isYouTube && youtubePlayerRef.current) {
+      try {
+        const iframe = youtubePlayerRef.current.getIframe();
+        if (iframe) {
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            iframe.requestFullscreen();
+          }
+        }
+      } catch (e) {
+        console.error('YouTube fullscreen error:', e);
+      }
+    } else if (videoRef.current) {
       if (document.fullscreenElement) {
         document.exitFullscreen();
       } else {
@@ -237,6 +464,11 @@ export const VideoPlayer = ({
   };
 
   const handlePiP = async () => {
+    if (isYouTube) {
+      // YouTube PiP desteklemiyor embed modunda
+      return;
+    }
+    
     if (!videoRef.current) return;
     
     try {
@@ -250,14 +482,15 @@ export const VideoPlayer = ({
     }
   };
 
-  // PiP event listeners - Mobile-optimized with retry mechanism
+  // PiP event listeners - Mobile-optimized with retry mechanism (only for HLS)
   useEffect(() => {
+    if (isYouTube) return;
+    
     const video = videoRef.current;
     if (!video) return;
 
     const handleEnterPiP = () => {
       setIsPiP(true);
-      // PiP'e girerken video oynuyor muydu kaydet
       wasPlayingBeforePiP.current = !video.paused;
     };
 
@@ -265,8 +498,6 @@ export const VideoPlayer = ({
       setIsPiP(false);
       justExitedPiP.current = true;
 
-      // Mobil tarayıcılar pause işlemini gecikmeli yapıyor
-      // Bu yüzden birkaç kez deneyelim
       const attemptPlay = (attempts = 5) => {
         if (wasPlayingBeforePiP.current && video.paused && attempts > 0) {
           video.play().catch(() => {
@@ -275,23 +506,19 @@ export const VideoPlayer = ({
         }
       };
 
-      // İlk deneme hemen, sonra gecikmeli
       setTimeout(() => attemptPlay(), 50);
 
-      // 1 saniye sonra flag'i temizle
       setTimeout(() => {
         justExitedPiP.current = false;
       }, 1000);
     };
 
-    // PiP çıkışı nedeniyle pause olursa yakala
     const handlePause = () => {
       if (justExitedPiP.current && wasPlayingBeforePiP.current) {
         video.play().catch(console.error);
       }
     };
 
-    // Sayfa görünür olunca kontrol et (mobil için kritik)
     const handleVisibilityChange = () => {
       if (
         document.visibilityState === 'visible' &&
@@ -314,7 +541,7 @@ export const VideoPlayer = ({
       video.removeEventListener('pause', handlePause);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [videoUrl]);
+  }, [videoUrl, isYouTube]);
 
   return (
     <div className="relative w-full h-full bg-cinema-dark rounded-lg overflow-hidden">
@@ -329,6 +556,30 @@ export const VideoPlayer = ({
               {isOwner ? 'Video eklemek için aşağıdaki butonu kullanın' : 'Video bekleniyor...'}
             </p>
           </div>
+        ) : isYouTube ? (
+          <>
+            <div 
+              ref={youtubeContainerRef} 
+              className="w-full h-full [&>div]:w-full [&>div]:h-full [&_iframe]:w-full [&_iframe]:h-full"
+            />
+            {/* Fullscreen Button for YouTube */}
+            <div className="absolute top-2 right-2 flex gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleFullscreen}
+                className="text-foreground/70 hover:text-foreground hover:bg-secondary/50"
+                title="Tam Ekran"
+              >
+                <Maximize2 className="w-5 h-5" />
+              </Button>
+            </div>
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-cinema-dark/80">
+                <Loader2 className="w-10 h-10 text-primary animate-spin" />
+              </div>
+            )}
+          </>
         ) : (
           <>
             <video
@@ -451,7 +702,7 @@ export const VideoPlayer = ({
                 </DialogHeader>
                 <div className="flex flex-col gap-4 pt-4">
                   <Input
-                    placeholder="m3u8 link yapıştırın..."
+                    placeholder="YouTube veya m3u8 link yapıştırın..."
                     value={urlInput}
                     onChange={(e) => setUrlInput(e.target.value)}
                     className="bg-input border-border/50"
