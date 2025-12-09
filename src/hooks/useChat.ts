@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { getUserId, getUsername, getAvatar } from '@/lib/user';
 
 interface Message {
   id: string;
@@ -13,11 +12,14 @@ interface Message {
   avatar_url?: string | null;
 }
 
-export const useChat = (roomId: string | undefined) => {
+interface Profile {
+  username: string;
+  avatar_url: string | null;
+}
+
+export const useChat = (roomId: string | undefined, profile: Profile | null, userId: string | undefined) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
-  
-  const userId = getUserId();
 
   const fetchMessages = useCallback(async () => {
     if (!roomId) return;
@@ -69,7 +71,6 @@ export const useChat = (roomId: string | undefined) => {
         },
         (payload) => {
           console.log('Message deleted:', payload);
-          // Remove the deleted message from state
           setMessages((prev) => prev.filter((msg) => msg.id !== payload.old.id));
         }
       )
@@ -95,9 +96,8 @@ export const useChat = (roomId: string | undefined) => {
   }, [roomId]);
 
   const sendMessage = async (content: string, imageFile?: File) => {
-    if (!roomId || (!content.trim() && !imageFile)) return;
+    if (!roomId || !userId || !profile || (!content.trim() && !imageFile)) return;
 
-    const username = getUsername();
     let imageUrl: string | null = null;
 
     // Upload image if provided
@@ -125,10 +125,10 @@ export const useChat = (roomId: string | undefined) => {
       .insert({
         room_id: roomId,
         user_id: userId,
-        username: username || 'Anonim',
+        username: profile.username,
         content: content.trim(),
         image_url: imageUrl,
-        avatar_url: getAvatar(),
+        avatar_url: profile.avatar_url,
       });
 
     if (error) {

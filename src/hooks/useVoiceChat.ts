@@ -9,7 +9,6 @@ import {
   ConnectionState,
 } from 'livekit-client';
 import { supabase } from '@/integrations/supabase/client';
-import { getUsername } from '@/lib/user';
 
 interface VoiceChatState {
   isConnected: boolean;
@@ -24,7 +23,8 @@ type OnParticipantJoinCallback = (name: string) => void;
 export const useVoiceChat = (
   roomCode: string | undefined,
   roomId: string | undefined,
-  onParticipantJoin?: OnParticipantJoinCallback
+  onParticipantJoin?: OnParticipantJoinCallback,
+  username?: string
 ) => {
   const [state, setState] = useState<VoiceChatState>({
     isConnected: false,
@@ -46,7 +46,6 @@ export const useVoiceChat = (
   const connect = useCallback(async () => {
     if (!roomCode || state.isConnected || state.isConnecting) return;
 
-    const username = getUsername();
     if (!username) {
       setState(prev => ({ ...prev, error: 'Kullanıcı adı gerekli' }));
       return;
@@ -200,7 +199,7 @@ export const useVoiceChat = (
         error: error instanceof Error ? error.message : 'Bağlantı hatası',
       }));
     }
-  }, [roomCode, roomId, state.isConnected, state.isConnecting]);
+  }, [roomCode, roomId, username, state.isConnected, state.isConnecting]);
 
   // Disconnect from LiveKit room
   const disconnect = useCallback(() => {
