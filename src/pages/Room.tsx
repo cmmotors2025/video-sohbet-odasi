@@ -110,8 +110,14 @@ const Room = () => {
           <ArrowLeft className="w-5 h-5" />
         </Button>
 
-        {/* Empty center spacer */}
-        <div className="flex-1" />
+        {/* Speaking avatars in center - only show when someone is speaking */}
+        <SpeakingAvatars
+          participants={presenceParticipants}
+          currentUserMicEnabled={isMicEnabled && voiceConnected}
+          currentUserAvatar={profile?.avatar_url || null}
+          currentUserUsername={profile?.username || 'Anonim'}
+          onClick={() => setParticipantsOpen(true)}
+        />
 
         <div className="flex items-center gap-2">
           <VoiceControls

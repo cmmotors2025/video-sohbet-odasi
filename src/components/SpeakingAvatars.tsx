@@ -36,32 +36,31 @@ export const SpeakingAvatars = ({
     });
   });
 
-  const noOneSpeaking = avatarsToShow.length === 0;
+  // Don't show anything if no one is speaking
+  if (avatarsToShow.length === 0) {
+    return null;
+  }
 
   return (
     <button
       onClick={onClick}
       className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-secondary/50 border border-border/30 hover:bg-secondary/70 transition-colors"
     >
-      {noOneSpeaking ? (
-        <MicOff className="w-5 h-5 text-muted-foreground" />
-      ) : (
-        <div className="flex -space-x-2">
-          {avatarsToShow.slice(0, 5).map((item, index) => (
-            <img
-              key={`${item.username}-${index}`}
-              src={item.avatar || '/placeholder.svg'}
-              alt={item.username}
-              className="w-7 h-7 rounded-full border-2 border-primary ring-2 ring-primary/30 object-cover"
-            />
-          ))}
-          {avatarsToShow.length > 5 && (
-            <div className="w-7 h-7 rounded-full border-2 border-primary bg-primary/20 flex items-center justify-center">
-              <span className="text-xs text-primary font-medium">+{avatarsToShow.length - 5}</span>
-            </div>
-          )}
-        </div>
-      )}
+      <div className="flex -space-x-2">
+        {avatarsToShow.slice(0, 5).map((item, index) => (
+          <img
+            key={`${item.username}-${index}`}
+            src={item.avatar || '/placeholder.svg'}
+            alt={item.username}
+            className="w-7 h-7 rounded-full border-2 border-primary ring-2 ring-primary/30 object-cover"
+          />
+        ))}
+        {avatarsToShow.length > 5 && (
+          <div className="w-7 h-7 rounded-full border-2 border-primary bg-primary/20 flex items-center justify-center">
+            <span className="text-xs text-primary font-medium">+{avatarsToShow.length - 5}</span>
+          </div>
+        )}
+      </div>
     </button>
   );
 };
