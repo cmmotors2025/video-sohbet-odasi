@@ -193,7 +193,7 @@ export const ChatBox = ({
                 </div>
 
                 {/* Message Content */}
-                <div className={cn('flex flex-col', isOwn ? 'items-end' : 'items-start')}>
+                <div className={cn('flex flex-col min-w-0 flex-1', isOwn ? 'items-end' : 'items-start')}>
                   <span className={cn(
                     "text-xs font-medium mb-1",
                     isOwn ? "text-foreground" : "text-primary"
@@ -202,7 +202,7 @@ export const ChatBox = ({
                   </span>
                   <div
                     className={cn(
-                      'max-w-[85%] px-3 py-2 rounded-2xl',
+                      'inline-block px-3 py-2 rounded-2xl',
                       isOwn 
                         ? 'bg-chat-own text-foreground rounded-tr-sm' 
                         : 'bg-chat-bubble text-foreground rounded-tl-sm'
@@ -217,7 +217,7 @@ export const ChatBox = ({
                       />
                     )}
                     {message.content && (
-                      <p className="text-sm break-words">{message.content}</p>
+                      <p className="text-sm whitespace-normal">{message.content}</p>
                     )}
                   </div>
                   <span className="text-[10px] text-muted-foreground mt-1">
