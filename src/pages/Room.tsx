@@ -100,7 +100,7 @@ const Room = () => {
   return (
     <div className="h-screen cinema-gradient flex flex-col overflow-hidden">
       {/* Header */}
-      <header className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-border/30">
+      <header className="shrink-0 flex items-center justify-between px-3 py-2 mt-2 border-b border-border/30">
         <Button
           onClick={() => navigate('/')}
           variant="ghost"
@@ -149,7 +149,7 @@ const Room = () => {
       {/* Main Content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
         {/* Video Section - takes more space */}
-        <div className="flex-[3] min-h-0 px-2 pt-1">
+        <div className="flex-[3] min-h-0 px-2 pt-3">
           <VideoPlayer
             videoUrl={videoState?.video_url || null}
             isPlaying={videoState?.is_playing || false}
