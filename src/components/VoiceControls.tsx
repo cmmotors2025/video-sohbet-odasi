@@ -121,11 +121,12 @@ export const VoiceControls = ({
         </Tooltip>
       </TooltipProvider>
 
-      {participantCount > 0 && (
-        <span className="text-xs text-muted-foreground ml-1">
-          {participantCount}
-        </span>
-      )}
+      <button
+        onClick={onOpenParticipants}
+        className="text-xs text-muted-foreground ml-1 hover:text-foreground transition-colors"
+      >
+        {participantCount} kişi
+      </button>
     </div>
   );
 };
