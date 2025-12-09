@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, ImagePlus, X, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
   Dialog,
@@ -271,12 +270,14 @@ export const ChatBox = ({
           >
             <ImagePlus className="w-5 h-5" />
           </Button>
-          <Input
+          <input
+            type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Mesaj yazın..."
-            className="flex-1 bg-input border-border/50 text-sm h-10 min-h-[40px]"
+            className="flex-1 h-10 px-3 py-2 bg-input border border-border/50 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             enterKeyHint="send"
+            autoComplete="off"
           />
           <Button 
             type="submit" 
