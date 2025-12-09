@@ -254,7 +254,13 @@ export const VideoPlayer = ({
     if (!video) return;
 
     const handleEnterPiP = () => setIsPiP(true);
-    const handleLeavePiP = () => setIsPiP(false);
+    const handleLeavePiP = () => {
+      setIsPiP(false);
+      // PiP'den çıkınca tarayıcı videoyu durduruyor, eğer oynaması gerekiyorsa tekrar başlat
+      if (isPlaying && video.paused) {
+        video.play().catch(console.error);
+      }
+    };
 
     video.addEventListener('enterpictureinpicture', handleEnterPiP);
     video.addEventListener('leavepictureinpicture', handleLeavePiP);
@@ -263,7 +269,7 @@ export const VideoPlayer = ({
       video.removeEventListener('enterpictureinpicture', handleEnterPiP);
       video.removeEventListener('leavepictureinpicture', handleLeavePiP);
     };
-  }, [videoUrl]);
+  }, [videoUrl, isPlaying]);
 
   return (
     <div className="relative w-full bg-cinema-dark rounded-lg overflow-hidden">
