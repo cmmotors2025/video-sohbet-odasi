@@ -103,24 +103,6 @@ export const VoiceControls = ({
         </Tooltip>
       </TooltipProvider>
 
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onOpenParticipants}
-              className="text-destructive hover:text-destructive hover:bg-destructive/10"
-            >
-              <PhoneOff className="w-4 h-4" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            <p>Katılımcıları göster</p>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-
       <button
         onClick={onOpenParticipants}
         className="text-xs text-muted-foreground ml-1 hover:text-foreground transition-colors"
