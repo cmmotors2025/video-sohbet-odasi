@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Copy, ArrowLeft, Check, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { ParticipantsDialog } from '@/components/ParticipantsDialog';
 import { useRoom } from '@/hooks/useRoom';
 import { useChat } from '@/hooks/useChat';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
+import { useRoomPresence } from '@/hooks/useRoomPresence';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
 
@@ -39,6 +40,14 @@ const Room = () => {
     userId,
   } = useChat(room?.id, profile, user?.id);
 
+  // Room presence for tracking all users in the room
+  const { participants: presenceParticipants, updateSpeakingStatus } = useRoomPresence({
+    roomCode: code || '',
+    userId: user?.id,
+    username: profile?.username,
+    avatarUrl: profile?.avatar_url,
+  });
+
   const handleParticipantJoin = useCallback((name: string) => {
     sendSystemMessage(`${name} katıldı`);
   }, [sendSystemMessage]);
@@ -53,6 +62,13 @@ const Room = () => {
     disconnect: disconnectVoice,
     toggleMic,
   } = useVoiceChat(code, room?.id, handleParticipantJoin, profile?.username);
+
+  // Merge voice speaking status with presence participants
+  useEffect(() => {
+    voiceParticipants.forEach((voiceP, id) => {
+      updateSpeakingStatus(id, voiceP.isSpeaking);
+    });
+  }, [voiceParticipants, updateSpeakingStatus]);
 
   const handleCopyCode = async () => {
     if (code) {
@@ -85,6 +101,12 @@ const Room = () => {
       </div>
     );
   }
+
+  const currentUser = {
+    id: user?.id || '',
+    username: profile?.username || 'Anonim',
+    avatar_url: profile?.avatar_url || null,
+  };
 
   return (
     <div className="h-screen cinema-gradient flex flex-col overflow-hidden">
@@ -122,16 +144,16 @@ const Room = () => {
             isConnected={voiceConnected}
             isConnecting={voiceConnecting}
             isMicEnabled={isMicEnabled}
-            participantCount={voiceParticipants.size}
+            participantCount={presenceParticipants.size + 1}
             error={voiceError}
             onToggleMic={toggleMic}
             onConnect={connectVoice}
             onDisconnect={disconnectVoice}
           />
           <ParticipantsDialog
-            participants={voiceParticipants}
+            participants={presenceParticipants}
             isOwner={isOwner}
-            currentUsername={profile?.username || 'Anonim'}
+            currentUser={currentUser}
             isMicEnabled={isMicEnabled}
             isConnected={voiceConnected}
           />
