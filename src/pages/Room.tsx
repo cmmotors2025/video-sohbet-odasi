@@ -147,9 +147,9 @@ const Room = () => {
       />
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <main className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden">
         {/* Video Section - takes more space */}
-        <div className="flex-[3] min-h-0 px-2 pt-8">
+        <div className="flex-[3] min-h-0 px-2 pt-8 lg:pt-4 lg:flex-[2] lg:h-full">
           <VideoPlayer
             videoUrl={videoState?.video_url || null}
             isPlaying={videoState?.is_playing || false}
@@ -163,7 +163,7 @@ const Room = () => {
         </div>
 
         {/* Chat Section - smaller, max height */}
-        <div className="flex-[2] min-h-0 max-h-[45vh] px-2 pb-2 -mt-28 flex flex-col">
+        <div className="flex-[2] min-h-0 max-h-[45vh] px-2 pb-2 -mt-28 flex flex-col lg:mt-0 lg:pt-4 lg:flex-1 lg:max-h-full lg:h-full">
           <ChatBox
             messages={messages}
             currentUserId={userId || ''}

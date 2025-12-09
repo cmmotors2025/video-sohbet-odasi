@@ -103,7 +103,7 @@ export const ChatBox = ({
   };
 
   return (
-    <div className="flex flex-col h-full max-h-full overflow-hidden bg-card/50 rounded-lg border border-border/30">
+    <div className="flex flex-col h-full max-h-full lg:max-h-none overflow-hidden bg-card/50 rounded-lg border border-border/30">
       {/* Chat Header */}
       <div className="px-2 py-1 border-b border-border/30 flex items-center justify-between">
         <h3 className="font-medium text-xs text-foreground/90">Sohbet</h3>
