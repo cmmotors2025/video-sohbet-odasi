@@ -42,6 +42,7 @@ export const VideoPlayer = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [isPiP, setIsPiP] = useState(false);
+  const wasPlayingBeforePiP = useRef(false);
 
   // Calculate smart sync time for new joiners only
   const calculateSyncTime = (forInitialSync = false) => {
@@ -253,11 +254,15 @@ export const VideoPlayer = ({
     const video = videoRef.current;
     if (!video) return;
 
-    const handleEnterPiP = () => setIsPiP(true);
+    const handleEnterPiP = () => {
+      setIsPiP(true);
+      // PiP'e girerken video oynuyor muydu kaydet
+      wasPlayingBeforePiP.current = !video.paused;
+    };
     const handleLeavePiP = () => {
       setIsPiP(false);
-      // PiP'den çıkınca tarayıcı videoyu durduruyor, eğer oynaması gerekiyorsa tekrar başlat
-      if (isPlaying && video.paused) {
+      // PiP'e girmeden önce video oynuyorduysa, çıkınca devam ettir
+      if (wasPlayingBeforePiP.current && video.paused) {
         video.play().catch(console.error);
       }
     };
@@ -269,7 +274,7 @@ export const VideoPlayer = ({
       video.removeEventListener('enterpictureinpicture', handleEnterPiP);
       video.removeEventListener('leavepictureinpicture', handleLeavePiP);
     };
-  }, [videoUrl, isPlaying]);
+  }, [videoUrl]);
 
   return (
     <div className="relative w-full bg-cinema-dark rounded-lg overflow-hidden">
