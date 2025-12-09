@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Users, Tv, BarChart3, Trash2, Play, Pause, Edit, ArrowLeft, UserCircle, Eye } from 'lucide-react';
+import { Loader2, Users, Tv, BarChart3, Trash2, Play, Pause, Edit, ArrowLeft, UserCircle, Eye, MessageCircle, Mic, MicOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,16 +13,22 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface RoomParticipant {
-  odaId: string;
-  odaCode: string;
-  participants: {
-    odaId: string;
-    odaCode: string;
-    odaKatilimci: string;
-    odaAvatar: string | null;
-  }[];
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  isSpeaking?: boolean;
+}
+
+interface ChatMessage {
+  id: string;
+  content: string;
+  username: string;
+  avatar_url: string | null;
+  created_at: string;
+  image_url?: string | null;
 }
 
 interface Room {
@@ -60,9 +66,13 @@ const Admin = () => {
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
   const [newUsername, setNewUsername] = useState('');
   const [newAvatarUrl, setNewAvatarUrl] = useState('');
-  const [viewingRoomParticipants, setViewingRoomParticipants] = useState<Room | null>(null);
-  const [roomParticipants, setRoomParticipants] = useState<RoomParticipant | null>(null);
+  const [viewingRoom, setViewingRoom] = useState<Room | null>(null);
+  const [roomParticipants, setRoomParticipants] = useState<RoomParticipant[]>([]);
+  const [roomMessages, setRoomMessages] = useState<ChatMessage[]>([]);
   const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
+  const [activeTab, setActiveTab] = useState<'participants' | 'chat'>('participants');
+  const channelRef = useRef<RealtimeChannel | null>(null);
+  const messageChannelRef = useRef<RealtimeChannel | null>(null);
 
   useEffect(() => {
     if (!adminLoading && !isAdmin) {
@@ -74,6 +84,18 @@ const Admin = () => {
       fetchData();
     }
   }, [isAdmin, adminLoading, navigate]);
+
+  // Cleanup channels on unmount or when dialog closes
+  useEffect(() => {
+    return () => {
+      if (channelRef.current) {
+        supabase.removeChannel(channelRef.current);
+      }
+      if (messageChannelRef.current) {
+        supabase.removeChannel(messageChannelRef.current);
+      }
+    };
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -124,6 +146,10 @@ const Admin = () => {
   };
 
   const handleDeleteRoom = async (roomId: string) => {
+    // First delete related data
+    await supabase.from('messages').delete().eq('room_id', roomId);
+    await supabase.from('video_state').delete().eq('room_id', roomId);
+    
     const { error } = await supabase
       .from('rooms')
       .delete()
@@ -183,10 +209,15 @@ const Admin = () => {
   };
 
   const handleDeleteAllRooms = async () => {
+    // Delete all messages first
+    await supabase.from('messages').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    // Delete all video states
+    await supabase.from('video_state').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    
     const { error } = await supabase
       .from('rooms')
       .delete()
-      .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+      .neq('id', '00000000-0000-0000-0000-000000000000');
 
     if (error) {
       toast.error('Odalar silinemedi');
@@ -215,7 +246,8 @@ const Admin = () => {
       .eq('id', editingProfile.id);
 
     if (error) {
-      toast.error('Profil güncellenemedi');
+      console.error('Profile update error:', error);
+      toast.error('Profil güncellenemedi: ' + error.message);
     } else {
       toast.success('Profil güncellendi');
       setEditingProfile(null);
@@ -225,46 +257,109 @@ const Admin = () => {
     }
   };
 
-  const handleViewRoomParticipants = async (room: Room) => {
-    setViewingRoomParticipants(room);
-    
-    // Subscribe to presence for this room
-    const channel = supabase.channel(`room:${room.code}`);
-    
-    const presenceState = channel.presenceState();
-    const participants = Object.values(presenceState).flat().map((p: any) => ({
-      odaId: room.id,
-      odaCode: room.code,
-      odaKatilimci: p.username || 'Bilinmiyor',
-      odaAvatar: p.avatarUrl || null
-    }));
+  const handleViewRoom = async (room: Room) => {
+    setViewingRoom(room);
+    setActiveTab('participants');
+    setRoomParticipants([]);
+    setRoomMessages([]);
 
-    setRoomParticipants({
-      odaId: room.id,
-      odaCode: room.code,
-      participants
+    // Cleanup previous channels
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+    }
+    if (messageChannelRef.current) {
+      supabase.removeChannel(messageChannelRef.current);
+    }
+
+    // Subscribe to presence for this room - CORRECT channel name
+    const presenceChannel = supabase.channel(`room-presence:${room.code}`, {
+      config: {
+        presence: {
+          key: 'admin-viewer',
+        },
+      },
     });
-
-    channel
+    
+    presenceChannel
       .on('presence', { event: 'sync' }, () => {
-        const newState = channel.presenceState();
-        const newParticipants = Object.values(newState).flat().map((p: any) => ({
-          odaId: room.id,
-          odaCode: room.code,
-          odaKatilimci: p.username || 'Bilinmiyor',
-          odaAvatar: p.avatarUrl || null
-        }));
-        setRoomParticipants({
-          odaId: room.id,
-          odaCode: room.code,
-          participants: newParticipants
+        const state = presenceChannel.presenceState();
+        const participants: RoomParticipant[] = [];
+        
+        Object.entries(state).forEach(([key, presences]) => {
+          if (presences && presences.length > 0) {
+            const presence = presences[0] as unknown as RoomParticipant;
+            participants.push({
+              id: presence.id || key,
+              username: presence.username || 'Bilinmiyor',
+              avatar_url: presence.avatar_url || null,
+              isSpeaking: presence.isSpeaking || false,
+            });
+          }
         });
+        
+        setRoomParticipants(participants);
       })
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    channelRef.current = presenceChannel;
+
+    // Fetch initial messages
+    const { data: messages } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('room_id', room.id)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (messages) {
+      setRoomMessages(messages.reverse());
+    }
+
+    // Subscribe to new messages
+    const msgChannel = supabase
+      .channel(`admin-messages:${room.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_id=eq.${room.id}`
+        },
+        (payload) => {
+          const newMessage = payload.new as ChatMessage;
+          setRoomMessages((prev) => [...prev, newMessage]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_id=eq.${room.id}`
+        },
+        () => {
+          setRoomMessages([]);
+        }
+      )
+      .subscribe();
+
+    messageChannelRef.current = msgChannel;
+  };
+
+  const handleCloseViewRoom = () => {
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+    if (messageChannelRef.current) {
+      supabase.removeChannel(messageChannelRef.current);
+      messageChannelRef.current = null;
+    }
+    setViewingRoom(null);
+    setRoomParticipants([]);
+    setRoomMessages([]);
   };
 
   if (adminLoading || loading) {
@@ -348,7 +443,7 @@ const Admin = () => {
                         {room.video_state?.video_url || 'Video yok'}
                       </p>
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => handleViewRoomParticipants(room)}>
+                        <Button variant="ghost" size="sm" onClick={() => handleViewRoom(room)}>
                           <Eye className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="sm" onClick={() => handleTogglePlay(room.id, room.video_state?.is_playing || false)}>
@@ -408,7 +503,7 @@ const Admin = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => handleViewRoomParticipants(room)}>
+                              <Button variant="ghost" size="icon" onClick={() => handleViewRoom(room)}>
                                 <Eye className="w-4 h-4" />
                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => handleTogglePlay(room.id, room.video_state?.is_playing || false)}>
@@ -617,34 +712,116 @@ const Admin = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Room Participants Dialog */}
-      <Dialog open={!!viewingRoomParticipants} onOpenChange={() => setViewingRoomParticipants(null)}>
-        <DialogContent className="max-w-[95vw] sm:max-w-md">
+      {/* Room Details Dialog - Participants & Chat */}
+      <Dialog open={!!viewingRoom} onOpenChange={handleCloseViewRoom}>
+        <DialogContent className="max-w-[95vw] sm:max-w-lg max-h-[80vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Oda Katılımcıları - {viewingRoomParticipants?.code}
+              <Eye className="w-5 h-5" />
+              Oda Detayları - {viewingRoom?.code}
             </DialogTitle>
           </DialogHeader>
-          <ScrollArea className="max-h-[300px]">
-            {roomParticipants?.participants && roomParticipants.participants.length > 0 ? (
-              <div className="space-y-2">
-                {roomParticipants.participants.map((participant, index) => (
-                  <div key={index} className="flex items-center gap-3 p-2 rounded-lg bg-muted/50">
-                    <Avatar className="w-8 h-8">
-                      <AvatarImage src={participant.odaAvatar || ''} />
-                      <AvatarFallback>{participant.odaKatilimci[0]}</AvatarFallback>
-                    </Avatar>
-                    <span className="text-sm font-medium">{participant.odaKatilimci}</span>
-                  </div>
-                ))}
+          
+          {/* Tabs for Participants and Chat */}
+          <div className="flex border-b border-border">
+            <button
+              onClick={() => setActiveTab('participants')}
+              className={`flex-1 py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 ${
+                activeTab === 'participants' 
+                  ? 'border-b-2 border-primary text-primary' 
+                  : 'text-muted-foreground'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              Katılımcılar ({roomParticipants.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`flex-1 py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 ${
+                activeTab === 'chat' 
+                  ? 'border-b-2 border-primary text-primary' 
+                  : 'text-muted-foreground'
+              }`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              Sohbet ({roomMessages.length})
+            </button>
+          </div>
+
+          <ScrollArea className="h-[350px]">
+            {activeTab === 'participants' ? (
+              <div className="space-y-2 p-2">
+                {roomParticipants.length > 0 ? (
+                  roomParticipants.map((participant, index) => (
+                    <div key={participant.id || index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="w-8 h-8">
+                          <AvatarImage src={participant.avatar_url || ''} />
+                          <AvatarFallback>{participant.username[0]}</AvatarFallback>
+                        </Avatar>
+                        <span className="text-sm font-medium">{participant.username}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {participant.isSpeaking ? (
+                          <div className="flex items-center gap-1 text-green-500">
+                            <Mic className="w-4 h-4" />
+                            <span className="text-xs">Açık</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1 text-muted-foreground">
+                            <MicOff className="w-4 h-4" />
+                            <span className="text-xs">Kapalı</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    Şu anda odada kimse yok
+                  </p>
+                )}
               </div>
             ) : (
-              <p className="text-center text-muted-foreground py-4">
-                Şu anda odada kimse yok veya bağlantı kuruluyor...
-              </p>
+              <div className="space-y-2 p-2">
+                {roomMessages.length > 0 ? (
+                  roomMessages.map((message) => (
+                    <div key={message.id} className="flex items-start gap-2 p-2 rounded-lg bg-muted/30">
+                      <Avatar className="w-6 h-6 flex-shrink-0">
+                        <AvatarImage src={message.avatar_url || ''} />
+                        <AvatarFallback className="text-xs">{message.username[0]}</AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-xs font-medium text-primary">{message.username}</span>
+                          <span className="text-[10px] text-muted-foreground">
+                            {new Date(message.created_at).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                        <p className="text-sm break-words">{message.content}</p>
+                        {message.image_url && (
+                          <img 
+                            src={message.image_url} 
+                            alt="Mesaj resmi" 
+                            className="mt-1 max-w-[150px] rounded-md cursor-pointer"
+                          />
+                        )}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    Henüz mesaj yok
+                  </p>
+                )}
+              </div>
             )}
           </ScrollArea>
+
+          <div className="flex items-center justify-between pt-2 border-t border-border text-xs text-muted-foreground">
+            <span>Oda Sahibi: {viewingRoom?.owner_profile?.username || 'Bilinmiyor'}</span>
+            <span>Kod: {viewingRoom?.code}</span>
+          </div>
         </DialogContent>
       </Dialog>
 
