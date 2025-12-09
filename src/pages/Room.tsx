@@ -69,7 +69,7 @@ const Room = () => {
         title: 'Kopyalandı!',
         description: 'Oda kodu panoya kopyalandı',
       });
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopied(false), 2000));
     }
   };
 
