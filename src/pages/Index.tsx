@@ -98,8 +98,8 @@ const Index = () => {
       </button>
 
       {/* Logo & Title */}
-      <div className="text-center mb-12 animate-fade-in">
-        <img src={neofilmLogo} alt="NEO FİLM" className="w-96 h-96 mx-auto mb-4 object-contain" />
+      <div className="text-center mb-8 animate-fade-in -mt-24">
+        <img src={neofilmLogo} alt="NEO FİLM" className="w-96 h-96 mx-auto -mb-8 object-contain" />
         <h1 className="text-3xl font-bold glow-text">NEO FİLM</h1>
         <p className="text-muted-foreground mt-2">
           Arkadaşlarınla senkronize video izle
