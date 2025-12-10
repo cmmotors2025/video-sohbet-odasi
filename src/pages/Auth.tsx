@@ -160,7 +160,7 @@ const Auth = () => {
       <div className="w-full max-w-sm animate-fade-in">
         {/* Header */}
         <div className="text-center mb-8">
-          <img src={neofilmLogo} alt="NEO FİLM" className="w-24 h-24 mx-auto mb-4 object-contain" />
+          <img src={neofilmLogo} alt="NEO FİLM" className="w-72 h-72 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold glow-text">
             {step === 'auth' 
               ? (isLogin ? 'Giriş Yap' : 'Kayıt Ol')
