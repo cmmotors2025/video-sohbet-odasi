@@ -101,7 +101,7 @@ const Index = () => {
       <img src={neofilmLogo} alt="NEO FİLM" className="w-96 h-96 mx-auto -mt-24 -mb-12 object-contain animate-fade-in" />
       
       {/* Title & Description */}
-      <div className="text-center mb-6 animate-fade-in -mt-8">
+      <div className="text-center mb-6 animate-fade-in -mt-12">
         <h1 className="text-3xl font-bold glow-text">NEO FİLM</h1>
         <p className="text-muted-foreground mt-2">
           Arkadaşlarınla senkronize video izle
