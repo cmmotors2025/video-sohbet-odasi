@@ -144,7 +144,7 @@ const Auth = () => {
         {/* Header */}
         <div className="text-center mb-1">
           <img src={neofilmLogo} alt="NEO FİLM" className="w-72 h-72 mx-auto -mb-20 -mt-44 object-contain" />
-          <h1 className="text-2xl font-bold glow-text">
+          <h1 className="text-2xl font-bold glow-text mt-2">
             {step === 'auth' ? isLogin ? 'Giriş Yap' : 'Kayıt Ol' : 'Profil Oluştur'}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm mb-2">
