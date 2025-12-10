@@ -159,15 +159,15 @@ const Auth = () => {
     <div className="min-h-screen cinema-gradient flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm animate-fade-in">
         {/* Header */}
-        <div className="text-center -mb-2">
-          <img src={neofilmLogo} alt="NEO FİLM" className="w-72 h-72 mx-auto -mb-20 -mt-32 object-contain" />
+        <div className="text-center mb-1">
+          <img src={neofilmLogo} alt="NEO FİLM" className="w-72 h-72 mx-auto -mb-20 -mt-40 object-contain" />
           <h1 className="text-2xl font-bold glow-text">
             {step === 'auth' 
               ? (isLogin ? 'Giriş Yap' : 'Kayıt Ol')
               : 'Profil Oluştur'
             }
           </h1>
-          <p className="text-muted-foreground mt-2 text-sm">
+          <p className="text-muted-foreground mt-1 text-sm mb-2">
             {step === 'auth'
               ? (isLogin ? 'Hesabınıza giriş yapın' : 'Yeni bir hesap oluşturun')
               : 'Kullanıcı bilgilerinizi girin'
