@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Mail, Lock, User, ImagePlus, Loader2, Eye, EyeOff } from 'lucide-react';
+import neofilmLogo from '@/assets/neofilm-logo.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
@@ -159,6 +160,7 @@ const Auth = () => {
       <div className="w-full max-w-sm animate-fade-in">
         {/* Header */}
         <div className="text-center mb-8">
+          <img src={neofilmLogo} alt="NEO FİLM" className="w-24 h-24 mx-auto mb-4 object-contain" />
           <h1 className="text-2xl font-bold glow-text">
             {step === 'auth' 
               ? (isLogin ? 'Giriş Yap' : 'Kayıt Ol')

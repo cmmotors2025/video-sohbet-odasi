@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, Users, ArrowRight, Loader2 } from 'lucide-react';
+import { Users, ArrowRight, Loader2, Play } from 'lucide-react';
+import neofilmLogo from '@/assets/neofilm-logo.png';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
@@ -98,9 +99,7 @@ const Index = () => {
 
       {/* Logo & Title */}
       <div className="text-center mb-12 animate-fade-in">
-        <div className="w-20 h-20 mx-auto mb-6 rounded-2xl bg-primary/20 flex items-center justify-center glow-primary animate-pulse-glow">
-          <Play className="w-10 h-10 text-primary" />
-        </div>
+        <img src={neofilmLogo} alt="NEO FİLM" className="w-32 h-32 mx-auto mb-4 object-contain" />
         <h1 className="text-3xl font-bold glow-text">NEO FİLM</h1>
         <p className="text-muted-foreground mt-2">
           Arkadaşlarınla senkronize video izle
