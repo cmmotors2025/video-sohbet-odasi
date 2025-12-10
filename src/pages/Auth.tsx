@@ -144,12 +144,14 @@ const Auth = () => {
         {/* Header */}
         <div className="text-center mb-1">
           <img src={neofilmLogo} alt="NEO FİLM" className="w-72 h-72 mx-auto -mb-20 -mt-44 object-contain" />
-          <h1 className="text-2xl font-bold glow-text mt-2">
-            {step === 'auth' ? isLogin ? 'Giriş Yap' : 'Kayıt Ol' : 'Profil Oluştur'}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm mb-2">
-            {step === 'auth' ? isLogin ? 'Hesabınıza giriş yapın' : 'Yeni bir hesap oluşturun' : 'Kullanıcı bilgilerinizi girin'}
-          </p>
+          <div className="mt-6">
+            <h1 className="text-2xl font-bold glow-text">
+              {step === 'auth' ? isLogin ? 'Giriş Yap' : 'Kayıt Ol' : 'Profil Oluştur'}
+            </h1>
+            <p className="text-muted-foreground mt-1 text-sm mb-2">
+              {step === 'auth' ? isLogin ? 'Hesabınıza giriş yapın' : 'Yeni bir hesap oluşturun' : 'Kullanıcı bilgilerinizi girin'}
+            </p>
+          </div>
         </div>
 
         {step === 'auth' ? <form onSubmit={handleAuthSubmit} className="space-y-4 mx-0 my-0 px-0 py-[35px]">
