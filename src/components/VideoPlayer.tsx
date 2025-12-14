@@ -105,6 +105,76 @@ export const VideoPlayer = ({
   
   // iOS cihaz tespiti
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  
+  // Mobil cihaz tespiti
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  
+  // Orientation auto-fullscreen için ref
+  const isFullscreenFromRotation = useRef(false);
+  const orientationTimeout = useRef<NodeJS.Timeout>();
+
+  // Ekran döndürme ile otomatik fullscreen
+  useEffect(() => {
+    if (!isMobile || !videoUrl) return;
+
+    const handleOrientationChange = () => {
+      clearTimeout(orientationTimeout.current);
+      orientationTimeout.current = setTimeout(() => {
+        const landscape = window.matchMedia('(orientation: landscape)').matches;
+        
+        if (landscape) {
+          // Yatay çevrildi - Fullscreen yap
+          isFullscreenFromRotation.current = true;
+          
+          if (isYouTube && youtubePlayerRef.current) {
+            const iframe = youtubePlayerRef.current.getIframe?.();
+            if (iframe) {
+              if (iframe.requestFullscreen) {
+                iframe.requestFullscreen().catch(() => {});
+              } else if ((iframe as any).webkitRequestFullscreen) {
+                (iframe as any).webkitRequestFullscreen();
+              }
+            }
+          } else if (videoRef.current) {
+            const video = videoRef.current as any;
+            if (typeof video.webkitEnterFullscreen === 'function') {
+              video.webkitEnterFullscreen();
+            } else if (video.requestFullscreen) {
+              video.requestFullscreen().catch(() => {});
+            }
+          }
+        } else if (!landscape && isFullscreenFromRotation.current) {
+          // Dikey çevrildi - Fullscreen'den çık
+          isFullscreenFromRotation.current = false;
+          
+          if (document.fullscreenElement) {
+            document.exitFullscreen().catch(() => {});
+          } else if ((document as any).webkitFullscreenElement) {
+            (document as any).webkitExitFullscreen?.();
+          }
+          
+          // iOS video için
+          if (videoRef.current) {
+            const video = videoRef.current as any;
+            if (video.webkitDisplayingFullscreen) {
+              video.webkitExitFullscreen?.();
+            }
+          }
+        }
+      }, 150);
+    };
+
+    // Event listeners
+    window.addEventListener('orientationchange', handleOrientationChange);
+    const mediaQuery = window.matchMedia('(orientation: landscape)');
+    mediaQuery.addEventListener('change', handleOrientationChange);
+
+    return () => {
+      clearTimeout(orientationTimeout.current);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      mediaQuery.removeEventListener('change', handleOrientationChange);
+    };
+  }, [videoUrl, isYouTube, isMobile]);
 
   // YouTube API yükle
   useEffect(() => {
