@@ -601,18 +601,20 @@ export const VideoPlayer = ({
               ref={youtubeContainerRef} 
               className="w-full h-full [&>div]:w-full [&>div]:h-full [&_iframe]:w-full [&_iframe]:h-full"
             />
-            {/* Fullscreen Button for YouTube */}
-            <div className="absolute top-2 right-2 flex gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleFullscreen}
-                className="text-foreground/70 hover:text-foreground hover:bg-secondary/50"
-                title="Tam Ekran"
-              >
-                <Maximize2 className="w-5 h-5" />
-              </Button>
-            </div>
+            {/* Fullscreen Button for YouTube - iOS'ta gizle çünkü YouTube native controls kullanıyor */}
+            {!isIOS && (
+              <div className="absolute top-2 right-2 flex gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleFullscreen}
+                  className="text-foreground/70 hover:text-foreground hover:bg-secondary/50"
+                  title="Tam Ekran"
+                >
+                  <Maximize2 className="w-5 h-5" />
+                </Button>
+              </div>
+            )}
             {isLoading && (
               <div className="absolute inset-0 flex items-center justify-center bg-cinema-dark/80">
                 <Loader2 className="w-10 h-10 text-primary animate-spin" />
@@ -645,6 +647,10 @@ export const VideoPlayer = ({
                 variant="ghost"
                 size="icon"
                 onClick={handleFullscreen}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  handleFullscreen();
+                }}
                 className="text-foreground/70 hover:text-foreground hover:bg-secondary/50"
                 title="Tam Ekran"
               >
