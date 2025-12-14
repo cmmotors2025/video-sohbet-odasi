@@ -102,6 +102,9 @@ export const VideoPlayer = ({
 
   const isYouTube = videoUrl ? getYouTubeVideoId(videoUrl) !== null : false;
   const youtubeVideoId = videoUrl ? getYouTubeVideoId(videoUrl) : null;
+  
+  // iOS cihaz tespiti
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
 
   // YouTube API yükle
   useEffect(() => {
@@ -159,7 +162,7 @@ export const VideoPlayer = ({
         videoId: youtubeVideoId,
         playerVars: {
           autoplay: isPlaying ? 1 : 0,
-          controls: 0,
+          controls: isIOS ? 1 : 0, // iOS'ta native controls göster (fullscreen için)
           modestbranding: 1,
           rel: 0,
           playsinline: 1,
@@ -464,11 +467,11 @@ export const VideoPlayer = ({
         webkitEnterFullscreen?: () => void;
         webkitExitFullscreen?: () => void;
         webkitDisplayingFullscreen?: boolean;
-        webkitSupportsFullscreen?: boolean;
       };
 
       // iOS Safari uses webkitEnterFullscreen on video element
-      if (video.webkitSupportsFullscreen && video.webkitEnterFullscreen) {
+      // Check function existence directly instead of webkitSupportsFullscreen property
+      if (typeof video.webkitEnterFullscreen === 'function') {
         if (video.webkitDisplayingFullscreen) {
           video.webkitExitFullscreen?.();
         } else {
@@ -551,16 +554,31 @@ export const VideoPlayer = ({
       }
     };
 
+    // iOS-specific fullscreen event handlers
+    const handleiOSEnterFullscreen = () => {
+      console.log('iOS fullscreen entered');
+    };
+
+    const handleiOSExitFullscreen = () => {
+      console.log('iOS fullscreen exited');
+    };
+
     video.addEventListener('enterpictureinpicture', handleEnterPiP);
     video.addEventListener('leavepictureinpicture', handleLeavePiP);
     video.addEventListener('pause', handlePause);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // iOS-specific fullscreen events
+    video.addEventListener('webkitbeginfullscreen', handleiOSEnterFullscreen);
+    video.addEventListener('webkitendfullscreen', handleiOSExitFullscreen);
 
     return () => {
       video.removeEventListener('enterpictureinpicture', handleEnterPiP);
       video.removeEventListener('leavepictureinpicture', handleLeavePiP);
       video.removeEventListener('pause', handlePause);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      video.removeEventListener('webkitbeginfullscreen', handleiOSEnterFullscreen);
+      video.removeEventListener('webkitendfullscreen', handleiOSExitFullscreen);
     };
   }, [videoUrl, isYouTube]);
 
