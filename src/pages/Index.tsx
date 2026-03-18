@@ -98,7 +98,7 @@ const Index = () => {
       </button>
 
       {/* Logo */}
-      <img src={neofilmLogo} alt="NEO FİLM" className="w-96 h-96 mx-auto -mt-24 -mb-12 object-contain animate-fade-in" />
+      <img src={neofilmLogo} alt="KATHENA FİLM" className="w-96 h-96 mx-auto -mt-24 -mb-12 object-contain animate-fade-in" />
       
       {/* Title & Description */}
       <div className="text-center mb-6 animate-fade-in -mt-16">
