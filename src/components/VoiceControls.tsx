@@ -1,4 +1,4 @@
-import { Mic, MicOff, Loader2, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Loader2, PhoneOff, MonitorUp, MonitorOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Tooltip,
@@ -11,24 +11,30 @@ interface VoiceControlsProps {
   isConnected: boolean;
   isConnecting: boolean;
   isMicEnabled: boolean;
+  isScreenSharing: boolean;
   participantCount: number;
   error: string | null;
   onToggleMic: () => void;
   onConnect: () => void;
   onDisconnect: () => void;
   onOpenParticipants: () => void;
+  onStartScreenShare: () => void;
+  onStopScreenShare: () => void;
 }
 
 export const VoiceControls = ({
   isConnected,
   isConnecting,
   isMicEnabled,
+  isScreenSharing,
   participantCount,
   error,
   onToggleMic,
   onConnect,
   onDisconnect,
   onOpenParticipants,
+  onStartScreenShare,
+  onStopScreenShare,
 }: VoiceControlsProps) => {
   // Bağlanıyor durumu
   if (isConnecting) {
@@ -40,7 +46,7 @@ export const VoiceControls = ({
     );
   }
 
-  // Hata durumu - tekrar dene butonu
+  // Hata durumu
   if (error) {
     return (
       <TooltipProvider>
@@ -64,7 +70,7 @@ export const VoiceControls = ({
     );
   }
 
-  // Henüz bağlanmadı - otomatik bağlanmayı bekliyor
+  // Henüz bağlanmadı
   if (!isConnected) {
     return (
       <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-secondary/50 border border-border/30">
@@ -74,9 +80,37 @@ export const VoiceControls = ({
     );
   }
 
-  // Bağlı durumu - mikrofon kontrolleri
+  // Bağlı durumu
   return (
     <div className="flex items-center gap-1">
+      {/* Screen Share Toggle */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={isScreenSharing ? onStopScreenShare : onStartScreenShare}
+              className={`${
+                isScreenSharing
+                  ? 'text-destructive hover:text-destructive hover:bg-destructive/10'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+              }`}
+            >
+              {isScreenSharing ? (
+                <MonitorOff className="w-4 h-4" />
+              ) : (
+                <MonitorUp className="w-4 h-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{isScreenSharing ? 'Paylaşımı durdur' : 'Ekran paylaş'}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
+      {/* Mic Toggle */}
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
