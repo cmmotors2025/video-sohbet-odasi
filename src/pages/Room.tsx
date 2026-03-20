@@ -7,6 +7,7 @@ import { ChatBox } from '@/components/ChatBox';
 import { VoiceControls } from '@/components/VoiceControls';
 import { ParticipantsDialog } from '@/components/ParticipantsDialog';
 import { SpeakingAvatars } from '@/components/SpeakingAvatars';
+import { ScreenShareView } from '@/components/ScreenShareView';
 import { useRoom } from '@/hooks/useRoom';
 import { useChat } from '@/hooks/useChat';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
@@ -57,11 +58,15 @@ const Room = () => {
     isConnected: voiceConnected,
     isConnecting: voiceConnecting,
     isMicEnabled,
+    isScreenSharing,
+    remoteScreenShare,
     participants: voiceParticipants,
     error: voiceError,
     connect: connectVoice,
     disconnect: disconnectVoice,
     toggleMic,
+    startScreenShare,
+    stopScreenShare,
   } = useVoiceChat(code, room?.id, handleParticipantJoin, profile?.username);
 
   // Broadcast mic status to presence when it changes
@@ -70,6 +75,9 @@ const Room = () => {
       trackSpeakingStatus(isMicEnabled);
     }
   }, [isMicEnabled, voiceConnected, trackSpeakingStatus]);
+
+  // Determine if screen share is active (local or remote)
+  const hasActiveScreenShare = isScreenSharing || !!remoteScreenShare;
 
   if (roomLoading) {
     return (
@@ -110,7 +118,7 @@ const Room = () => {
           <ArrowLeft className="w-5 h-5" />
         </Button>
 
-        {/* Speaking avatars in center - only show when someone is speaking */}
+        {/* Speaking avatars in center */}
         <SpeakingAvatars
           participants={presenceParticipants}
           currentUserMicEnabled={isMicEnabled && voiceConnected}
@@ -124,12 +132,15 @@ const Room = () => {
             isConnected={voiceConnected}
             isConnecting={voiceConnecting}
             isMicEnabled={isMicEnabled}
+            isScreenSharing={isScreenSharing}
             participantCount={presenceParticipants.size + 1}
             error={voiceError}
             onToggleMic={toggleMic}
             onConnect={connectVoice}
             onDisconnect={disconnectVoice}
             onOpenParticipants={() => setParticipantsOpen(true)}
+            onStartScreenShare={startScreenShare}
+            onStopScreenShare={stopScreenShare}
           />
         </div>
       </header>
@@ -148,18 +159,35 @@ const Room = () => {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col lg:flex-row min-h-0 overflow-hidden lg:px-8 lg:gap-6 lg:py-4">
-        {/* Video Section */}
+        {/* Video / Screen Share Section */}
         <div className="shrink-0 px-2 pt-2 lg:px-0 lg:pt-0 lg:flex-[2] lg:h-full lg:min-w-0">
-          <VideoPlayer
-            videoUrl={videoState?.video_url || null}
-            isPlaying={videoState?.is_playing || false}
-            playbackTime={videoState?.playback_time || 0}
-            isOwner={isOwner}
-            onUpdateUrl={updateVideoUrl}
-            onPlayPause={updatePlaybackState}
-            onSeek={seekTo}
-            lastUpdated={videoState?.updated_at || null}
-          />
+          {hasActiveScreenShare ? (
+            // Show screen share - hide video
+            remoteScreenShare ? (
+              <ScreenShareView
+                track={remoteScreenShare.track}
+                participantName={remoteScreenShare.participantName}
+              />
+            ) : (
+              // Local screen share - we need to get the local track
+              <LocalScreenShareView
+                roomRef={null}
+                onStopShare={stopScreenShare}
+                username={profile?.username || 'Sen'}
+              />
+            )
+          ) : (
+            <VideoPlayer
+              videoUrl={videoState?.video_url || null}
+              isPlaying={videoState?.is_playing || false}
+              playbackTime={videoState?.playback_time || 0}
+              isOwner={isOwner}
+              onUpdateUrl={updateVideoUrl}
+              onPlayPause={updatePlaybackState}
+              onSeek={seekTo}
+              lastUpdated={videoState?.updated_at || null}
+            />
+          )}
         </div>
 
         {/* Chat Section */}
@@ -174,6 +202,28 @@ const Room = () => {
           />
         </div>
       </main>
+    </div>
+  );
+};
+
+// Simple component for showing local screen share feedback
+const LocalScreenShareView = ({ onStopShare, username }: { roomRef: any; onStopShare: () => void; username: string }) => {
+  return (
+    <div className="relative w-full h-full bg-cinema-dark rounded-lg overflow-hidden">
+      <div className="relative aspect-[4/3] lg:aspect-video lg:h-full bg-cinema-dark flex flex-col items-center justify-center gap-4">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/80 text-destructive-foreground text-sm font-medium">
+          <span className="w-2 h-2 rounded-full bg-destructive-foreground animate-pulse" />
+          Ekranınızı paylaşıyorsunuz
+        </div>
+        <p className="text-muted-foreground text-sm">Diğer kullanıcılar ekranınızı görüyor</p>
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={onStopShare}
+        >
+          Paylaşımı Durdur
+        </Button>
+      </div>
     </div>
   );
 };
