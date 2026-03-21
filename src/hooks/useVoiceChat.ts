@@ -201,8 +201,8 @@ export const useVoiceChat = (
       });
 
       room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-        if (track.kind === Track.Kind.Audio) {
-          console.log('Audio track unsubscribed from:', participant.identity);
+        if (track.kind === Track.Kind.Audio && track.source === Track.Source.Microphone) {
+          console.log('Mic audio track unsubscribed from:', participant.identity);
           const audioEl = audioElementsRef.current.get(participant.identity);
           if (audioEl) {
             track.detach(audioEl);
@@ -211,7 +211,19 @@ export const useVoiceChat = (
           }
         }
         
-        // Screen share ended
+        // Screen share audio ended
+        if (track.kind === Track.Kind.Audio && track.source === Track.Source.ScreenShareAudio) {
+          console.log('Screen share audio unsubscribed from:', participant.identity);
+          const key = `screen-audio-${participant.identity}`;
+          const audioEl = audioElementsRef.current.get(key);
+          if (audioEl) {
+            track.detach(audioEl);
+            audioEl.remove();
+            audioElementsRef.current.delete(key);
+          }
+        }
+        
+        // Screen share video ended
         if (track.kind === Track.Kind.Video && track.source === Track.Source.ScreenShare) {
           console.log('Screen share track unsubscribed from:', participant.identity);
           setState(prev => {
