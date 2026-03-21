@@ -313,7 +313,12 @@ export const useVoiceChat = (
 
     try {
       const room = roomRef.current;
-      await room.localParticipant.setScreenShareEnabled(true);
+      await room.localParticipant.setScreenShareEnabled(true, {
+        audio: true,
+        selfBrowserSurface: 'include',
+        surfaceSwitching: 'include',
+        systemAudio: 'include',
+      } as any);
       setState(prev => ({ ...prev, isScreenSharing: true }));
     } catch (error) {
       console.error('Error starting screen share:', error);
