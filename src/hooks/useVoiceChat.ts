@@ -169,15 +169,24 @@ export const useVoiceChat = (
       });
 
       room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
-        if (track.kind === Track.Kind.Audio) {
-          console.log('Audio track subscribed from:', participant.identity);
+        if (track.kind === Track.Kind.Audio && track.source === Track.Source.Microphone) {
+          console.log('Mic audio track subscribed from:', participant.identity);
           const audioEl = track.attach();
           audioEl.id = `audio-${participant.identity}`;
           document.body.appendChild(audioEl);
           audioElementsRef.current.set(participant.identity, audioEl);
         }
         
-        // Screen share track from remote participant
+        // Screen share audio track
+        if (track.kind === Track.Kind.Audio && track.source === Track.Source.ScreenShareAudio) {
+          console.log('Screen share audio track subscribed from:', participant.identity);
+          const audioEl = track.attach();
+          audioEl.id = `screen-audio-${participant.identity}`;
+          document.body.appendChild(audioEl);
+          audioElementsRef.current.set(`screen-audio-${participant.identity}`, audioEl);
+        }
+        
+        // Screen share video track
         if (track.kind === Track.Kind.Video && track.source === Track.Source.ScreenShare) {
           console.log('Screen share track subscribed from:', participant.identity);
           setState(prev => ({
