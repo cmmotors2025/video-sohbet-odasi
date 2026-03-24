@@ -182,14 +182,6 @@ const Room = () => {
                 <DanmakuOverlay messages={messages} />
               </div>
             </div>
-            ) : (
-              // Local screen share - we need to get the local track
-              <LocalScreenShareView
-                roomRef={null}
-                onStopShare={stopScreenShare}
-                username={profile?.username || 'Sen'}
-              />
-            )
           ) : (
             <VideoPlayer
               videoUrl={videoState?.video_url || null}
