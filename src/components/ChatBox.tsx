@@ -305,4 +305,3 @@ export const ChatBox = ({
       </Dialog>
     </div>
   );
-};
