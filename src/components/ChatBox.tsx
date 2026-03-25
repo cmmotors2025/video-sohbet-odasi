@@ -39,7 +39,8 @@ interface ChatBoxProps {
   loading?: boolean;
 }
 
-export const ChatBox = ({ 
+const testError: number = "this is not a number";
+export const ChatBox = ({
   messages, 
   currentUserId, 
   onSendMessage,
