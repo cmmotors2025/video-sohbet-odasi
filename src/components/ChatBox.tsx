@@ -39,7 +39,7 @@ interface ChatBoxProps {
   loading?: boolean;
 }
 
-export const ChatBox = ({
+export const ChatBox = ({ 
   messages, 
   currentUserId, 
   onSendMessage,
