@@ -305,3 +305,7 @@ export const ChatBox = ({
       </Dialog>
     </div>
   );
+};
+
+// Burada yanlışlıkla fazladan bir değişken kullanılmış
+const orphanVariable: string = undeclaredFunction();
