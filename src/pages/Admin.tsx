@@ -758,9 +758,6 @@ const Admin = () => {
               <Gift className="w-4 h-4" />
               <span className="hidden sm:inline">Hediye</span>
             </button>
-              <MessageCircle className="w-4 h-4" />
-              Sohbet ({roomMessages.length})
-            </button>
           </div>
 
           <ScrollArea className="h-[350px]">
@@ -797,7 +794,7 @@ const Admin = () => {
                   </p>
                 )}
               </div>
-            ) : (
+            ) : activeTab === 'chat' ? (
               <div className="space-y-2 p-2">
                 {roomMessages.length > 0 ? (
                   roomMessages.map((message) => (
@@ -830,6 +827,11 @@ const Admin = () => {
                   </p>
                 )}
               </div>
+            ) : (
+              <AdminGiftSender
+                roomCode={viewingRoom?.code || ''}
+                participants={roomParticipants}
+              />
             )}
           </ScrollArea>
 
