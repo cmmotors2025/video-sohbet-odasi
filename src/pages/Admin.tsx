@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Users, Tv, BarChart3, Trash2, Play, Pause, Edit, ArrowLeft, UserCircle, Eye, MessageCircle, Mic, MicOff } from 'lucide-react';
+import { Loader2, Users, Tv, BarChart3, Trash2, Play, Pause, Edit, ArrowLeft, UserCircle, Eye, MessageCircle, Mic, MicOff, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { toast } from 'sonner';
+import { AdminGiftSender } from '@/components/AdminGiftSender';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 interface RoomParticipant {
@@ -70,7 +71,7 @@ const Admin = () => {
   const [roomParticipants, setRoomParticipants] = useState<RoomParticipant[]>([]);
   const [roomMessages, setRoomMessages] = useState<ChatMessage[]>([]);
   const [deleteAllConfirm, setDeleteAllConfirm] = useState(false);
-  const [activeTab, setActiveTab] = useState<'participants' | 'chat'>('participants');
+  const [activeTab, setActiveTab] = useState<'participants' | 'chat' | 'gift'>('participants');
   const channelRef = useRef<RealtimeChannel | null>(null);
   const messageChannelRef = useRef<RealtimeChannel | null>(null);
 
@@ -737,14 +738,25 @@ const Admin = () => {
             </button>
             <button
               onClick={() => setActiveTab('chat')}
-              className={`flex-1 py-2 px-4 text-sm font-medium flex items-center justify-center gap-2 ${
+              className={`flex-1 py-2 px-3 text-sm font-medium flex items-center justify-center gap-1.5 ${
                 activeTab === 'chat' 
                   ? 'border-b-2 border-primary text-primary' 
                   : 'text-muted-foreground'
               }`}
             >
               <MessageCircle className="w-4 h-4" />
-              Sohbet ({roomMessages.length})
+              <span className="hidden sm:inline">Sohbet</span> ({roomMessages.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('gift')}
+              className={`flex-1 py-2 px-3 text-sm font-medium flex items-center justify-center gap-1.5 ${
+                activeTab === 'gift' 
+                  ? 'border-b-2 border-amber-500 text-amber-500' 
+                  : 'text-muted-foreground'
+              }`}
+            >
+              <Gift className="w-4 h-4" />
+              <span className="hidden sm:inline">Hediye</span>
             </button>
           </div>
 
@@ -782,7 +794,7 @@ const Admin = () => {
                   </p>
                 )}
               </div>
-            ) : (
+            ) : activeTab === 'chat' ? (
               <div className="space-y-2 p-2">
                 {roomMessages.length > 0 ? (
                   roomMessages.map((message) => (
@@ -815,6 +827,11 @@ const Admin = () => {
                   </p>
                 )}
               </div>
+            ) : (
+              <AdminGiftSender
+                roomCode={viewingRoom?.code || ''}
+                participants={roomParticipants}
+              />
             )}
           </ScrollArea>
 

@@ -9,6 +9,7 @@ import { ParticipantsDialog } from '@/components/ParticipantsDialog';
 import { SpeakingAvatars } from '@/components/SpeakingAvatars';
 import { ScreenShareView } from '@/components/ScreenShareView';
 import { DanmakuOverlay } from '@/components/DanmakuOverlay';
+import { GiftOverlay } from '@/components/GiftOverlay';
 import { useRoom } from '@/hooks/useRoom';
 import { useChat } from '@/hooks/useChat';
 import { useVoiceChat } from '@/hooks/useVoiceChat';
@@ -211,6 +212,9 @@ const Room = () => {
           />
         </div>
       </main>
+
+      {/* Gift Overlay */}
+      <GiftOverlay roomCode={code || ''} currentUsername={profile?.username || ''} />
     </div>
   );
 };
