@@ -295,6 +295,7 @@ const Admin = () => {
               username: presence.username || 'Bilinmiyor',
               avatar_url: presence.avatar_url || null,
               isSpeaking: presence.isSpeaking || false,
+              isBackground: presence.isBackground || false,
             });
           }
         });
