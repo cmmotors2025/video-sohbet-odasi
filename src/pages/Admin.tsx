@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdmin } from '@/hooks/useAdmin';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, Users, Tv, BarChart3, Trash2, Play, Pause, Edit, ArrowLeft, UserCircle, Eye, MessageCircle, Mic, MicOff, Gift } from 'lucide-react';
+import { Loader2, Users, Tv, BarChart3, Trash2, Play, Pause, Edit, ArrowLeft, UserCircle, Eye, EyeOff, MessageCircle, Mic, MicOff, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
