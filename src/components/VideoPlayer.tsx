@@ -302,6 +302,70 @@ export const VideoPlayer = ({
     return () => clearInterval(interval);
   }, [isYouTube, isOwner]);
 
+  // Build proxy URL helper
+  const getProxyUrl = useCallback((originalUrl: string) => {
+    const supabaseUrl = (supabase as any).supabaseUrl || import.meta.env.VITE_SUPABASE_URL;
+    return `${supabaseUrl}/functions/v1/hls-proxy`;
+  }, []);
+
+  // Custom HLS loader that proxies through edge function
+  const createProxyLoader = useCallback(() => {
+    const proxyUrl = getProxyUrl('');
+    
+    class ProxyLoader extends Hls.DefaultConfig.loader {
+      constructor(config: any) {
+        super(config);
+        const originalLoad = this.load.bind(this);
+        this.load = (context: any, config: any, callbacks: any) => {
+          // Only proxy .m3u8 and .ts requests
+          const url = context.url;
+          if (url && (url.includes('.m3u8') || url.includes('.ts') || url.includes('.urlset'))) {
+            // Replace URL with proxy
+            const originalOnSuccess = callbacks.onSuccess;
+            
+            fetch(proxyUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+              },
+              body: JSON.stringify({ url }),
+            })
+              .then(async (res) => {
+                if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+                
+                const isM3U8 = url.includes('.m3u8') || url.includes('.urlset');
+                if (isM3U8) {
+                  const text = await res.text();
+                  originalOnSuccess(
+                    { data: text, url: context.url },
+                    { ...context },
+                    null
+                  );
+                } else {
+                  const buffer = await res.arrayBuffer();
+                  originalOnSuccess(
+                    { data: buffer, url: context.url },
+                    { ...context },
+                    null
+                  );
+                }
+              })
+              .catch((err) => {
+                console.error('Proxy fetch error, falling back to direct:', err);
+                // Fallback to direct loading
+                originalLoad(context, config, callbacks);
+              });
+          } else {
+            originalLoad(context, config, callbacks);
+          }
+        };
+      }
+    }
+    
+    return ProxyLoader;
+  }, [getProxyUrl]);
+
   // Initialize HLS (only for non-YouTube)
   useEffect(() => {
     if (!videoUrl || !videoRef.current || isYouTube) return;
@@ -316,6 +380,7 @@ export const VideoPlayer = ({
       const hls = new Hls({
         enableWorker: true,
         lowLatencyMode: true,
+        loader: createProxyLoader() as any,
       });
 
       hls.loadSource(videoUrl);
@@ -334,7 +399,33 @@ export const VideoPlayer = ({
 
       hls.on(Hls.Events.ERROR, (_, data) => {
         console.error('HLS Error:', data);
-        setIsLoading(false);
+        if (data.fatal) {
+          console.log('Fatal HLS error, retrying without proxy...');
+          hls.destroy();
+          
+          // Retry without proxy
+          const hlsFallback = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+          });
+          hlsFallback.loadSource(videoUrl);
+          hlsFallback.attachMedia(videoRef.current!);
+          hlsFallback.on(Hls.Events.MANIFEST_PARSED, () => {
+            setIsLoading(false);
+            if (videoRef.current) {
+              const targetTime = calculateSyncTime(true);
+              videoRef.current.currentTime = targetTime;
+              if (isPlaying) {
+                videoRef.current.play().catch(console.error);
+              }
+            }
+          });
+          hlsFallback.on(Hls.Events.ERROR, (_, d) => {
+            console.error('HLS Fallback Error:', d);
+            setIsLoading(false);
+          });
+          hlsRef.current = hlsFallback;
+        }
       });
 
       hlsRef.current = hls;
@@ -357,7 +448,7 @@ export const VideoPlayer = ({
         hlsRef.current.destroy();
       }
     };
-  }, [videoUrl, isYouTube]);
+  }, [videoUrl, isYouTube, createProxyLoader]);
 
   // Track current time and duration for progress bar (owner only, HLS)
   useEffect(() => {
