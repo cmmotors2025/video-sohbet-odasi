@@ -107,11 +107,14 @@ export const VideoPlayer = ({
   const isYouTube = videoUrl ? getYouTubeVideoId(videoUrl) !== null : false;
   const youtubeVideoId = videoUrl ? getYouTubeVideoId(videoUrl) : null;
   
+  const userAgent = navigator.userAgent;
+
   // iOS cihaz tespiti
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !(window as any).MSStream;
   
   // Mobil cihaz tespiti
-  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(userAgent);
+  const isSamsungAndroid = /Android/i.test(userAgent) && /SamsungBrowser|SM-|SAMSUNG/i.test(userAgent);
   
   // Orientation auto-fullscreen için ref
   const isFullscreenFromRotation = useRef(false);
@@ -212,6 +215,70 @@ export const VideoPlayer = ({
     }
     return playbackTime;
   }, [isPlaying, lastUpdated, playbackTime]);
+
+  const syncVideoElement = useCallback((video: HTMLVideoElement, forInitialSync = false) => {
+    const targetTime = calculateSyncTime(forInitialSync);
+
+    if (forInitialSync || Math.abs(video.currentTime - targetTime) > 1.5) {
+      video.currentTime = targetTime;
+    }
+
+    if (isPlaying) {
+      video.play().catch(console.error);
+    }
+  }, [calculateSyncTime, isPlaying]);
+
+  const createLoaderStats = useCallback((loaded: number) => {
+    const now = performance.now();
+
+    return {
+      aborted: false,
+      loaded,
+      total: loaded,
+      retry: 0,
+      chunkCount: 1,
+      bwEstimate: 0,
+      loading: { start: now, first: now, end: now },
+      parsing: { start: now, end: now },
+      buffering: { start: now, first: now, end: now },
+    };
+  }, []);
+
+  const applySamsungCodecPreference = useCallback((hls: Hls) => {
+    if (!isSamsungAndroid || !hls.levels?.length) return;
+
+    const avcLevels = hls.levels
+      .map((level, index) => {
+        const codecs = [
+          level.codecSet,
+          level.videoCodec,
+          level.audioCodec,
+          (level as any).attrs?.CODECS,
+        ]
+          .filter(Boolean)
+          .join(',')
+          .toLowerCase();
+
+        return { index, codecs };
+      })
+      .filter(({ codecs }) => (
+        codecs.includes('avc1') &&
+        !codecs.includes('hev1') &&
+        !codecs.includes('hvc1') &&
+        !codecs.includes('av01') &&
+        !codecs.includes('vp09')
+      ));
+
+    const preferredLevel = avcLevels[avcLevels.length - 1];
+
+    if (!preferredLevel) return;
+
+    hls.startLevel = preferredLevel.index;
+    hls.loadLevel = preferredLevel.index;
+    hls.nextLevel = preferredLevel.index;
+    hls.currentLevel = preferredLevel.index;
+    hls.autoLevelCapping = preferredLevel.index;
+  }, [isSamsungAndroid]);
 
   // YouTube Player başlat
   useEffect(() => {
@@ -316,55 +383,57 @@ export const VideoPlayer = ({
       constructor(config: any) {
         super(config);
         const originalLoad = this.load.bind(this);
+
         this.load = (context: any, config: any, callbacks: any) => {
-          // Only proxy .m3u8 and .ts requests
           const url = context.url;
-          if (url && (url.includes('.m3u8') || url.includes('.ts') || url.includes('.urlset'))) {
-            // Replace URL with proxy
-            const originalOnSuccess = callbacks.onSuccess;
-            
-            fetch(proxyUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-              },
-              body: JSON.stringify({ url }),
-            })
-              .then(async (res) => {
-                if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
-                
-                const isM3U8 = url.includes('.m3u8') || url.includes('.urlset');
-                if (isM3U8) {
-                  const text = await res.text();
-                  originalOnSuccess(
-                    { data: text, url: context.url },
-                    { ...context },
-                    null
-                  );
-                } else {
-                  const buffer = await res.arrayBuffer();
-                  originalOnSuccess(
-                    { data: buffer, url: context.url },
-                    { ...context },
-                    null
-                  );
-                }
-              })
-              .catch((err) => {
-                console.error('Proxy fetch error, falling back to direct:', err);
-                // Fallback to direct loading
-                originalLoad(context, config, callbacks);
-              });
-          } else {
+
+          if (!url || !/^https?:\/\//i.test(url)) {
             originalLoad(context, config, callbacks);
+            return;
           }
+
+          const expectsBinary = context.responseType === 'arraybuffer';
+
+          fetch(proxyUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({ url }),
+          })
+            .then(async (res) => {
+              if (!res.ok) throw new Error(`Proxy error: ${res.status}`);
+
+              if (expectsBinary) {
+                const buffer = await res.arrayBuffer();
+                callbacks.onSuccess(
+                  { data: buffer, url, code: res.status },
+                  createLoaderStats(buffer.byteLength),
+                  context,
+                  null
+                );
+                return;
+              }
+
+              const text = await res.text();
+              callbacks.onSuccess(
+                { data: text, text, url, code: res.status },
+                createLoaderStats(text.length),
+                context,
+                null
+              );
+            })
+            .catch((err) => {
+              console.error('Proxy fetch error, falling back to direct:', err, url);
+              originalLoad(context, config, callbacks);
+            });
         };
       }
     }
     
     return ProxyLoader;
-  }, [getProxyUrl]);
+  }, [createLoaderStats, getProxyUrl]);
 
   // Initialize HLS (only for non-YouTube)
   useEffect(() => {
@@ -372,89 +441,143 @@ export const VideoPlayer = ({
 
     setIsLoading(true);
 
+    const video = videoRef.current;
+    let mediaRecoveryAttempts = 0;
+    let retriedWithoutProxy = false;
+    let usingNativeFallback = false;
+
+    const handleMediaReady = () => {
+      setIsLoading(false);
+      syncVideoElement(video, true);
+    };
+
+    const handleVideoError = () => {
+      if (!hlsRef.current || video.error?.code !== 3) return;
+
+      try {
+        hlsRef.current.swapAudioCodec();
+        hlsRef.current.recoverMediaError();
+      } catch (error) {
+        console.error('Video decode recovery error:', error);
+      }
+    };
+
+    const attachNativeSource = () => {
+      if (usingNativeFallback || !video.canPlayType('application/vnd.apple.mpegurl')) {
+        return false;
+      }
+
+      usingNativeFallback = true;
+
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+
+      video.src = videoUrl;
+      video.load();
+      return true;
+    };
+
+    video.addEventListener('loadedmetadata', handleMediaReady);
+    video.addEventListener('error', handleVideoError);
+
     if (Hls.isSupported()) {
       if (hlsRef.current) {
         hlsRef.current.destroy();
       }
 
-      const hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true,
-        loader: createProxyLoader() as any,
-        // Samsung uyumluluğu için ek ayarlar
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        startLevel: -1, // Otomatik kalite seçimi
+      const buildHlsInstance = (useProxy: boolean) => new Hls({
+        enableWorker: !isSamsungAndroid,
+        lowLatencyMode: false,
+        ...(useProxy ? { loader: createProxyLoader() as any } : {}),
+        maxBufferLength: isSamsungAndroid ? 20 : 30,
+        maxMaxBufferLength: isSamsungAndroid ? 30 : 60,
+        startLevel: -1,
         capLevelToPlayerSize: true,
         testBandwidth: true,
       });
 
-      hls.loadSource(videoUrl);
-      hls.attachMedia(videoRef.current);
+      const attachHls = (instance: Hls, useProxy: boolean) => {
+        instance.loadSource(videoUrl);
+        instance.attachMedia(video);
 
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setIsLoading(false);
-        if (videoRef.current) {
-          const targetTime = calculateSyncTime(true);
-          videoRef.current.currentTime = targetTime;
-          if (isPlaying) {
-            videoRef.current.play().catch(console.error);
+        instance.on(Hls.Events.MANIFEST_PARSED, () => {
+          applySamsungCodecPreference(instance);
+          setIsLoading(false);
+          syncVideoElement(video, true);
+        });
+
+        instance.on(Hls.Events.ERROR, (_, data) => {
+          console.error('HLS Error:', data);
+
+          if (!data.fatal) return;
+
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            instance.startLoad();
+            return;
           }
-        }
-      });
 
-      hls.on(Hls.Events.ERROR, (_, data) => {
-        console.error('HLS Error:', data);
-        if (data.fatal) {
-          console.log('Fatal HLS error, retrying without proxy...');
-          hls.destroy();
-          
-          // Retry without proxy
-          const hlsFallback = new Hls({
-            enableWorker: true,
-            lowLatencyMode: true,
-          });
-          hlsFallback.loadSource(videoUrl);
-          hlsFallback.attachMedia(videoRef.current!);
-          hlsFallback.on(Hls.Events.MANIFEST_PARSED, () => {
-            setIsLoading(false);
-            if (videoRef.current) {
-              const targetTime = calculateSyncTime(true);
-              videoRef.current.currentTime = targetTime;
-              if (isPlaying) {
-                videoRef.current.play().catch(console.error);
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR && mediaRecoveryAttempts < 2) {
+            mediaRecoveryAttempts += 1;
+
+            try {
+              if (mediaRecoveryAttempts > 1) {
+                instance.swapAudioCodec();
               }
-            }
-          });
-          hlsFallback.on(Hls.Events.ERROR, (_, d) => {
-            console.error('HLS Fallback Error:', d);
-            setIsLoading(false);
-          });
-          hlsRef.current = hlsFallback;
-        }
-      });
 
-      hlsRef.current = hls;
-    } else if (videoRef.current.canPlayType('application/vnd.apple.mpegurl')) {
-      videoRef.current.src = videoUrl;
-      videoRef.current.addEventListener('loadedmetadata', () => {
-        setIsLoading(false);
-        if (videoRef.current) {
-          const targetTime = calculateSyncTime(true);
-          videoRef.current.currentTime = targetTime;
-          if (isPlaying) {
-            videoRef.current.play().catch(console.error);
+              instance.recoverMediaError();
+              return;
+            } catch (error) {
+              console.error('HLS media recovery error:', error);
+            }
           }
-        }
-      });
+
+          if (!useProxy && attachNativeSource()) {
+            return;
+          }
+
+          if (useProxy && !retriedWithoutProxy) {
+            retriedWithoutProxy = true;
+            instance.destroy();
+
+            const hlsFallback = buildHlsInstance(false);
+            hlsRef.current = hlsFallback;
+            attachHls(hlsFallback, false);
+            return;
+          }
+
+          setIsLoading(false);
+        });
+      };
+
+      const hls = buildHlsInstance(true);
+      attachHls(hls, true);
+      hlsRef.current = hls;
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = videoUrl;
+      video.load();
+    } else {
+      setIsLoading(false);
     }
 
     return () => {
+      video.removeEventListener('loadedmetadata', handleMediaReady);
+      video.removeEventListener('error', handleVideoError);
+
       if (hlsRef.current) {
         hlsRef.current.destroy();
+        hlsRef.current = null;
       }
     };
-  }, [videoUrl, isYouTube, createProxyLoader]);
+  }, [
+    videoUrl,
+    isYouTube,
+    createProxyLoader,
+    applySamsungCodecPreference,
+    isSamsungAndroid,
+    syncVideoElement,
+  ]);
 
   // Track current time and duration for progress bar (owner only, HLS)
   useEffect(() => {
@@ -807,7 +930,7 @@ export const VideoPlayer = ({
               x5-playsinline="true"
               x5-video-player-type="h5"
               x5-video-player-fullscreen="true"
-              preload="auto"
+              preload={isSamsungAndroid ? 'metadata' : 'auto'}
               crossOrigin="anonymous"
             />
             {/* PiP & Fullscreen Buttons - Always visible */}
