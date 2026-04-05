@@ -1,5 +1,6 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import Hls from 'hls.js';
+import { supabase } from '@/integrations/supabase/client';
 import { Play, Pause, RotateCcw, RotateCw, Link, Loader2, Maximize2, Eye, EyeOff, PictureInPicture2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
